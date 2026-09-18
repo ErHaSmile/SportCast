@@ -1,6 +1,7 @@
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
 import { createUploadedAsset, uniqueFilename } from "@/lib/asset-file";
+import { VIDEO_MAX_BYTES, VIDEO_MAX_LABEL } from "@/lib/upload-limits";
 
 const ALLOWED = new Set([
   "video/mp4",
@@ -8,9 +9,10 @@ const ALLOWED = new Set([
   "video/quicktime",
   "video/x-msvideo",
 ]);
-const MAX_SIZE = 200 * 1024 * 1024;
 
-export const maxDuration = 300;
+// 大文件经 Node→OSS，最长允许约 30 分钟
+export const maxDuration = 1800;
+
 
 function extFromMime(mime: string, name: string): string {
   if (mime === "video/webm") return "webm";
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
     lower.endsWith(".webm") ||
     lower.endsWith(".mov");
   if (!mimeOk) return jsonError("仅支持 MP4 / WEBM / MOV");
-  if (file.size > MAX_SIZE) return jsonError("视频不能超过 200MB");
+  if (file.size > VIDEO_MAX_BYTES) return jsonError(`视频不能超过 ${VIDEO_MAX_LABEL}`);
 
   const ext = extFromMime(file.type || "video/mp4", name);
   const filename = uniqueFilename(ext);

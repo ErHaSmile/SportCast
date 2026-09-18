@@ -345,7 +345,7 @@ export default function SchedulesPage() {
               rules={[{ required: true, message: "请上传回放视频" }]}
               extra="上传 MP4 / WEBM / MOV，前台回放页将直接播放该视频"
             >
-              <VideoUploadField tip="建议 1080p MP4，单文件不超过 200MB" />
+              <VideoUploadField tip="建议 1080p MP4，单文件不超过 1GB" />
             </Form.Item>
           )}
 

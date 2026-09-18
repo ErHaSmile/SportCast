@@ -189,7 +189,17 @@ export async function putStoredFile(opts: {
   if (driver === "local") {
     const { dir, disk } = localDiskPath(opts.kind, opts.filename);
     await mkdir(dir, { recursive: true });
-    await writeFile(disk, Buffer.from(await opts.file.arrayBuffer()));
+    if (opts.kind === "video") {
+      const tmp = await writeTempFile(opts.file);
+      try {
+        const { copyFile } = await import("fs/promises");
+        await copyFile(tmp.dest, disk);
+      } finally {
+        await rm(tmp.dir, { recursive: true, force: true });
+      }
+    } else {
+      await writeFile(disk, Buffer.from(await opts.file.arrayBuffer()));
+    }
     const url = localPublicPath(opts.kind, opts.filename);
     return { url, key: url };
   }

@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["ali-oss", "urllib", "proxy-agent"],
   // 允许后台上传较大回放视频
   experimental: {
-    proxyClientMaxBodySize: "210mb",
+    proxyClientMaxBodySize: "1100mb",
   },
 };
 
