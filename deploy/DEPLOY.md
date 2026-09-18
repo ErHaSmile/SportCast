@@ -634,6 +634,15 @@ bash deploy/up.sh
 会自动：`git pull` → 装依赖 → 数据库迁移 → 构建 → PM2 启动/重启。  
 首次部署请先配好 `.env`，并用 `git clone` 把仓库放到 `/opt/sportcast`（见上文传代码步骤）。
 
+若 `git pull` 报连不上 `github.com:443`，先改镜像再更新：
+
+```bash
+cd /opt/sportcast
+git remote set-url origin https://gitclone.com/github.com/ErHaSmile/SportCast.git
+# 若仍失败可试：https://ghproxy.net/https://github.com/ErHaSmile/SportCast.git
+bash deploy/up.sh
+```
+
 ### 手动上传代码后的更新流程
 
 1. 本机重新打包（同样排除 `node_modules`、`.next`）
