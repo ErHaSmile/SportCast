@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="20" fill="#102a43"/>
+  <rect x="30" y="36" width="68" height="44" rx="8" fill="#3dbfff"/>
+  <polygon points="52,48 52,68 72,58" fill="#102a43"/>
+  <text x="64" y="106" text-anchor="middle" fill="#fff" font-size="11" font-family="Arial,sans-serif">SPORTS.CN</text>
+</svg>

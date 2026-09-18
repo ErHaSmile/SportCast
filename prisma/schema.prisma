@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Stream {
+  id           String     @id @default(cuid())
+  name         String
+  type         String     @default("HLS") // HLS | H5
+  url          String
+  status       String     @default("OFF") // ON | OFF
+  sort         Int        @default(0)
+  coverUrl     String?
+  coverAssetId String?
+  coverAsset   Asset?     @relation(fields: [coverAssetId], references: [id])
+  schedules    Schedule[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Schedule {
+  id           String    @id @default(cuid())
+  title        String
+  location     String?
+  startAt      DateTime
+  endAt        DateTime?
+  streamId     String?
+  stream       Stream?   @relation(fields: [streamId], references: [id])
+  replayUrl    String?
+  detailUrl    String?
+  /// 录播摘要（列表/详情导语）
+  summary      String    @default("")
+  /// 录播图文正文（支持纯文本，换行保留）
+  content      String    @default("")
+  coverUrl     String?
+  coverAssetId String?
+  coverAsset   Asset?    @relation(fields: [coverAssetId], references: [id])
+  sort         Int       @default(0)
+  isReplay     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Asset {
+  id        String     @id @default(cuid())
+  name      String
+  path      String
+  mime      String
+  size      Int
+  streams   Stream[]
+  schedules Schedule[]
+  partners  Partner[]
+  createdAt DateTime   @default(now())
+}
+
+/// 顶部外链 / 合作单位 / 海报赞助 Logo
+model Partner {
+  id        String   @id @default(cuid())
+  name      String
+  url       String?
+  /// HEADER | PARTNER | SPONSOR
+  group     String   @default("PARTNER")
+  logoUrl   String?
+  logoAssetId String?
+  logoAsset Asset?   @relation(fields: [logoAssetId], references: [id])
+  sort      Int      @default(0)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OperationLog {
+  id         String   @id @default(cuid())
+  action     String
+  targetType String
+  targetId   String?
+  before     String?
+  after      String?
+  operator   String
+  createdAt  DateTime @default(now())
+}
+
+model SiteConfig {
+  id               String  @id @default("default")
+  eventTitle       String  @default("赛事直播专题")
+  eventSubtitle    String  @default("")
+  eventDateText    String  @default("")
+  bannerTitle      String  @default("")
+  slogan           String  @default("")
+  sourceText       String  @default("")
+  locationText     String  @default("")
+  hostUnits        String  @default("")
+  organizeUnits    String  @default("")
+  coOrganizeUnits  String  @default("")
+  supportUnits     String  @default("")
+  heroAssetId      String?
+  heroImageUrl     String  @default("")
+  footerLinks      String  @default("")
+  footerCopyright  String  @default("")
+  footerIcp        String  @default("")
+  footerContact    String  @default("")
+}
+
+model PageVisit {
+  id        String   @id @default(cuid())
+  path      String
+  ip        String   @default("")
+  ua        String   @default("")
+  referer   String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+}
