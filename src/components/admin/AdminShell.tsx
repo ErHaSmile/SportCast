@@ -21,7 +21,6 @@ import {
   LogoutOutlined,
   LinkOutlined,
   SettingOutlined,
-  BarChartOutlined,
 } from "@ant-design/icons";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import zhCN from "antd/locale/zh_CN";
@@ -31,7 +30,6 @@ const { Header, Sider, Content } = Layout;
 
 const items = [
   { key: "/admin", icon: <DashboardOutlined />, label: "概览" },
-  { key: "/admin/stats", icon: <BarChartOutlined />, label: "访客统计" },
   { key: "/admin/streams", icon: <VideoCameraOutlined />, label: "直播源" },
   { key: "/admin/schedules", icon: <CalendarOutlined />, label: "赛程" },
   { key: "/admin/partners", icon: <LinkOutlined />, label: "外链合作" },
