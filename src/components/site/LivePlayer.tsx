@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
+import { isNativeVideoUrl } from "@/lib/media";
 
 type Props = {
   type: "HLS" | "H5" | string;
@@ -14,12 +15,8 @@ type Props = {
   forceControls?: boolean;
 };
 
-/** 本地上传 mp4/webm 等，走原生 video，不走 HLS */
 function isFileVideo(url: string, type?: string) {
-  if (type === "FILE" || type === "MP4" || type === "VIDEO") return true;
-  const path = url.split("?")[0].toLowerCase();
-  if (path.includes("/uploads/videos/")) return true;
-  return /\.(mp4|webm|mov|m4v|ogg)(\s|$)/.test(path) || /\.(mp4|webm|mov|m4v|ogg)$/.test(path);
+  return isNativeVideoUrl(url, type);
 }
 
 export default function LivePlayer({

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
+import { canonicalMediaUrl } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,7 +35,9 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
       status,
       sort: body?.sort === undefined ? before.sort : Number(body.sort) || 0,
       coverUrl:
-        body?.coverUrl === undefined ? before.coverUrl : body.coverUrl?.trim() || null,
+        body?.coverUrl === undefined
+          ? before.coverUrl
+          : canonicalMediaUrl(body.coverUrl) || null,
     },
   });
 

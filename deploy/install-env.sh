@@ -48,12 +48,13 @@ case "${OS_ID}" in
     ;;
 esac
 
-npm install -g pm2
+npm install -g pnpm pm2
 
 echo ""
 echo "==> 安装完成"
 echo "node: $(node -v)"
 echo "npm:  $(npm -v)"
+echo "pnpm: $(pnpm -v)"
 echo "pm2:  $(pm2 -v)"
 echo "nginx: $(nginx -v 2>&1 || true)"
 echo ""

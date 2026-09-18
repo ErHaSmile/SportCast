@@ -8,6 +8,7 @@ type Row = {
   id: string;
   name: string;
   path: string;
+  accessUrl?: string;
   mime: string;
   size: number;
   createdAt: string;
@@ -95,15 +96,17 @@ export default function AssetsPage() {
             title: "预览",
             dataIndex: "path",
             width: 100,
-            render: (v: string, row: Row) =>
-              row.mime.startsWith("video/") ? (
+            render: (_: string, row: Row) => {
+              const src = row.accessUrl || row.path;
+              return row.mime.startsWith("video/") ? (
                 <video
-                  src={v}
+                  src={src}
                   style={{ width: 64, height: 64, objectFit: "cover", background: "#000" }}
                 />
               ) : (
-                <Image src={v} alt="" width={64} height={64} style={{ objectFit: "contain" }} />
-              ),
+                <Image src={src} alt="" width={64} height={64} style={{ objectFit: "contain" }} />
+              );
+            },
           },
           { title: "名称", dataIndex: "name", ellipsis: true },
           { title: "路径", dataIndex: "path", ellipsis: true },

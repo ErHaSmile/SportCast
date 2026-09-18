@@ -2,13 +2,17 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
+import { canonicalMediaUrl, resolveMediaFields } from "@/lib/storage";
 
 export async function GET() {
   const { error } = await requireAdminApi();
   if (error) return error;
-  const items = await prisma.partner.findMany({
+  const rows = await prisma.partner.findMany({
     orderBy: [{ group: "asc" }, { sort: "asc" }, { createdAt: "asc" }],
   });
+  const items = await Promise.all(
+    rows.map((row) => resolveMediaFields(row, ["logoUrl"])),
+  );
   return jsonOk({ items });
 }
 
@@ -35,7 +39,7 @@ export async function POST(request: NextRequest) {
       name: body.name.trim(),
       url: body.url?.trim() || null,
       group,
-      logoUrl: body.logoUrl?.trim() || null,
+      logoUrl: canonicalMediaUrl(body.logoUrl) || null,
       sort: Number.isFinite(body.sort) ? Number(body.sort) : 0,
       enabled: body.enabled !== false,
     },

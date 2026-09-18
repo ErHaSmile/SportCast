@@ -1,8 +1,7 @@
-import { unlink } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
+import { removeStoredFile } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -28,11 +27,7 @@ export async function DELETE(_request: Request, ctx: Ctx) {
   });
 
   await prisma.asset.delete({ where: { id } });
-
-  if (before.path.startsWith("/uploads/")) {
-    const disk = path.join(process.cwd(), "public", before.path.replace(/^\//, ""));
-    await unlink(disk).catch(() => undefined);
-  }
+  await removeStoredFile(before.path);
 
   await writeOperationLog({
     action: "asset.delete",

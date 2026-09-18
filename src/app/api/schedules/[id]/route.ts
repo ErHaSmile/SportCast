@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
+import { canonicalMediaUrl } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -45,13 +46,15 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
       replayUrl:
         body?.replayUrl === undefined
           ? before.replayUrl
-          : body.replayUrl?.trim() || null,
+          : canonicalMediaUrl(body.replayUrl) || null,
       detailUrl:
         body?.detailUrl === undefined
           ? before.detailUrl
           : body.detailUrl?.trim() || null,
       coverUrl:
-        body?.coverUrl === undefined ? before.coverUrl : body.coverUrl?.trim() || null,
+        body?.coverUrl === undefined
+          ? before.coverUrl
+          : canonicalMediaUrl(body.coverUrl) || null,
       summary: body?.summary === undefined ? before.summary : body.summary.trim(),
       content: body?.content === undefined ? before.content : body.content.trim(),
       sort: body?.sort === undefined ? before.sort : Number(body.sort) || 0,

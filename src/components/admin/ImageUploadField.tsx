@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Image, Space, Upload, message } from "antd";
 import { DeleteOutlined, UploadOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
@@ -11,9 +11,36 @@ type Props = {
   tip?: string;
 };
 
+async function resolvePreview(url: string) {
+  if (!url || url.startsWith("/")) return url;
+  try {
+    const res = await fetch(`/api/media/access?url=${encodeURIComponent(url)}`);
+    const json = await res.json();
+    if (res.ok && json.url) return json.url as string;
+  } catch {
+    // ignore
+  }
+  return url;
+}
+
 export default function ImageUploadField({ value, onChange, tip }: Props) {
   const [uploading, setUploading] = useState(false);
-  const preview = value?.trim() || "";
+  const [preview, setPreview] = useState("");
+
+  useEffect(() => {
+    const v = value?.trim() || "";
+    if (!v) {
+      setPreview("");
+      return;
+    }
+    let cancelled = false;
+    resolvePreview(v).then((url) => {
+      if (!cancelled) setPreview(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [value]);
 
   const customRequest: UploadProps["customRequest"] = async (options) => {
     const { file, onSuccess, onError } = options;
@@ -28,6 +55,7 @@ export default function ImageUploadField({ value, onChange, tip }: Props) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "上传失败");
       onChange?.(json.item.path);
+      setPreview(json.accessUrl || json.item.path);
       message.success("上传成功");
       onSuccess?.(json);
     } catch (err) {

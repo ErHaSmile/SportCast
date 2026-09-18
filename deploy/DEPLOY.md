@@ -176,8 +176,8 @@ apt-get install -y curl ca-certificates gnupg git build-essential nginx
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y nodejs
 
-# 安装 PM2（用来守护 Node 进程，关机重启后还能自动起来）
-npm install -g pm2
+# 安装 pnpm（依赖管理）和 PM2（守护 Node 进程，关机重启后还能自动起来）
+npm install -g pnpm pm2
 
 # 开机自启 Nginx
 systemctl enable nginx
@@ -193,7 +193,7 @@ yum install -y curl ca-certificates git gcc-c++ make nginx
 curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
 yum install -y nodejs
 
-npm install -g pm2
+npm install -g pnpm pm2
 
 systemctl enable nginx
 systemctl start nginx
@@ -204,6 +204,7 @@ systemctl start nginx
 ```bash
 node -v
 npm -v
+pnpm -v
 pm2 -v
 nginx -v
 git --version
@@ -367,6 +368,31 @@ nano .env
 # 改完：Ctrl+O 回车保存，Ctrl+X 退出
 ```
 
+### 6.1 对象存储（推荐：图片 / 回放视频走阿里云 OSS）
+
+不配 OSS 时，上传仍写到服务器 `public/uploads`。配好后，后台新上传的封面、Logo、回放视频会存到 **私有** Bucket；网站访问时由服务器签发短时签名链接，别人拿到文件路径也无法长期随便下载。
+
+1. 阿里云控制台创建 **OSS Bucket**（建议与 ECS 同地域，读写权限选 **私有**）。
+2. 用 RAM 子账号创建 AccessKey，只授权该 Bucket（不要用主账号密钥）。
+3. 把下面几行追加进 `/opt/sportcast/.env`（按你的实际值改）：
+
+```bash
+STORAGE_DRIVER=oss
+OSS_REGION=oss-cn-hangzhou
+OSS_BUCKET=你的Bucket名
+OSS_ACCESS_KEY_ID=你的AccessKeyId
+OSS_ACCESS_KEY_SECRET=你的AccessKeySecret
+# 同地域 ECS 建议走内网上传，省流量费（签名给浏览器仍走公网域名）
+# OSS_ENDPOINT=oss-cn-hangzhou-internal.aliyuncs.com
+# 若绑了 CDN / 自定义域名：
+# OSS_PUBLIC_BASE=https://cdn.example.com
+OSS_PREFIX=sportcast
+# 签名有效期（秒），默认图片 2 小时、视频 6 小时
+# OSS_SIGN_EXPIRES=7200
+```
+
+4. 改完后重新构建并重启：`bash deploy/update.sh`（或只改了 `.env` 时：`pm2 restart sportcast --update-env`）。
+
 ---
 
 ## 第 7 步：安装依赖、初始化数据库、构建、启动
@@ -406,16 +432,15 @@ pm2 save
 ```bash
 cd /opt/sportcast
 
-npm ci
-# 若没有 package-lock.json，改用：npm install
+pnpm install --frozen-lockfile
 
 npx prisma generate
 npx prisma migrate deploy
 
 # 首次写入管理员 admin / admin123 和示例数据
-npm run db:seed
+pnpm db:seed
 
-npm run build
+pnpm build
 
 pm2 start deploy/ecosystem.config.cjs
 pm2 save
@@ -615,7 +640,7 @@ ls -lh /opt/backup
 └── sportcast/              # 项目根目录
     ├── .env                # 生产配置（不要发给别人）
     ├── package.json
-    ├── node_modules/       # npm 安装生成
+    ├── node_modules/       # pnpm 安装生成
     ├── .next/              # build 生成
     ├── logs/               # PM2 日志
     ├── deploy/             # 部署脚本与文档
@@ -670,8 +695,8 @@ client_max_body_size 210m;
 ```bash
 cd /opt/sportcast
 rm -rf node_modules .next
-npm ci
-npm run build
+pnpm install --frozen-lockfile
+pnpm build
 bash deploy/restart.sh
 ```
 
@@ -707,7 +732,7 @@ apt-get update -y
 apt-get install -y curl ca-certificates gnupg git build-essential nginx
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y nodejs
-npm install -g pm2
+npm install -g pnpm pm2
 systemctl enable nginx && systemctl start nginx
 
 # —— 项目 ——

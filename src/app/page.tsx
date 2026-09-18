@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import SideTabs from "@/components/site/SideTabs";
+import { resolveMediaUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,26 @@ export default async function HomePage() {
       }),
     ]);
 
+  const [
+    heroImageUrl,
+    headerLogos,
+    partnerLogos,
+    liveCovers,
+    streamCovers,
+    replayCovers,
+    defaultCover,
+  ] = await Promise.all([
+    resolveMediaUrl(config?.heroImageUrl || "/covers/event-hero.svg"),
+    Promise.all(headers.map((h) => resolveMediaUrl(h.logoUrl))),
+    Promise.all(partners.map((p) => resolveMediaUrl(p.logoUrl))),
+    Promise.all(liveSchedules.map((s) => resolveMediaUrl(s.coverUrl))),
+    Promise.all(
+      liveSchedules.map((s) => resolveMediaUrl(s.stream?.coverUrl || null)),
+    ),
+    Promise.all(replays.map((s) => resolveMediaUrl(s.coverUrl))),
+    resolveMediaUrl(defaultStream?.coverUrl || null),
+  ]);
+
   const footerLinks = (config?.footerLinks || "")
     .split("|")
     .map((s) => s.trim())
@@ -56,7 +77,7 @@ export default async function HomePage() {
       <div className="portal-inner">
         <header className="top-bar">
           <div className="top-links">
-            {headers.map((item) => (
+            {headers.map((item, idx) => (
               <a
                 key={item.id}
                 className="top-link"
@@ -65,9 +86,9 @@ export default async function HomePage() {
                 rel="noreferrer"
               >
                 <div className="top-link-logo">
-                  {item.logoUrl ? (
+                  {headerLogos[idx] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.logoUrl} alt={item.name} />
+                    <img src={headerLogos[idx]} alt={item.name} />
                   ) : (
                     <span>{item.name.slice(0, 2)}</span>
                   )}
@@ -95,7 +116,7 @@ export default async function HomePage() {
         </p>
 
         <SideTabs
-          liveSchedules={liveSchedules.map((s) => ({
+          liveSchedules={liveSchedules.map((s, idx) => ({
             id: s.id,
             title: s.title,
             location: s.location,
@@ -104,7 +125,7 @@ export default async function HomePage() {
             streamId: s.streamId,
             replayUrl: s.replayUrl,
             detailUrl: s.detailUrl,
-            coverUrl: s.coverUrl,
+            coverUrl: liveCovers[idx] || null,
             summary: s.summary,
             isReplay: s.isReplay,
             stream: s.stream
@@ -113,11 +134,11 @@ export default async function HomePage() {
                   name: s.stream.name,
                   type: s.stream.type,
                   url: s.stream.url,
-                  coverUrl: s.stream.coverUrl,
+                  coverUrl: streamCovers[idx] || null,
                 }
               : null,
           }))}
-          replays={replays.map((s) => ({
+          replays={replays.map((s, idx) => ({
             id: s.id,
             title: s.title,
             location: s.location,
@@ -126,7 +147,7 @@ export default async function HomePage() {
             streamId: s.streamId,
             replayUrl: s.replayUrl,
             detailUrl: s.detailUrl,
-            coverUrl: s.coverUrl,
+            coverUrl: replayCovers[idx] || null,
             summary: s.summary,
             isReplay: s.isReplay,
           }))}
@@ -137,7 +158,7 @@ export default async function HomePage() {
                   name: defaultStream.name,
                   type: defaultStream.type,
                   url: defaultStream.url,
-                  coverUrl: defaultStream.coverUrl,
+                  coverUrl: defaultCover || null,
                 }
               : null
           }
@@ -146,20 +167,20 @@ export default async function HomePage() {
             title: config?.bannerTitle || config?.eventTitle || "",
             orgs,
             locationText: config?.locationText || "",
-            heroImageUrl: config?.heroImageUrl || "/covers/event-hero.svg",
+            heroImageUrl: heroImageUrl || "/covers/event-hero.svg",
           }}
         />
 
         <section className="partners">
           <h3>合作单位</h3>
           <div className="partner-grid">
-            {partners.map((p) => {
+            {partners.map((p, idx) => {
               const inner = (
                 <>
                   <div className="partner-logo">
-                    {p.logoUrl ? (
+                    {partnerLogos[idx] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.logoUrl} alt={p.name} />
+                      <img src={partnerLogos[idx]} alt={p.name} />
                     ) : (
                       <span>{p.name.slice(0, 2)}</span>
                     )}

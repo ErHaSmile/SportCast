@@ -12,10 +12,10 @@
 ## 快速开始
 
 ```bash
-npm install
-npx prisma migrate dev
-npm run db:seed
-npm run dev
+pnpm install
+pnpm exec prisma migrate dev
+pnpm db:seed
+pnpm dev
 ```
 
 - 前台：http://localhost:3000
@@ -38,11 +38,11 @@ npm run dev
 
 | 命令 | 说明 |
 |------|------|
-| `npm run dev` | 本地开发 |
-| `npm run build` | 生产构建 |
-| `npm run db:migrate` | 数据库迁移 |
-| `npm run db:seed` | 写入默认管理员与示例数据 |
-| `npm run db:reset` | 重置数据库并重新 seed |
+| `pnpm dev` | 本地开发 |
+| `pnpm build` | 生产构建 |
+| `pnpm db:migrate` | 数据库迁移 |
+| `pnpm db:seed` | 写入默认管理员与示例数据 |
+| `pnpm db:reset` | 重置数据库并重新 seed |
 
 ## 生产部署（阿里云）
 

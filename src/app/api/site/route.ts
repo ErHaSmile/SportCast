@@ -2,12 +2,16 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
+import { canonicalMediaUrl, resolveMediaFields } from "@/lib/storage";
 
 export async function GET() {
   const { error } = await requireAdminApi();
   if (error) return error;
   const item = await prisma.siteConfig.findUnique({ where: { id: "default" } });
-  return jsonOk({ item });
+  if (!item) return jsonOk({ item });
+  return jsonOk({
+    item: await resolveMediaFields(item, ["heroImageUrl"]),
+  });
 }
 
 export async function PUT(request: NextRequest) {
@@ -39,7 +43,12 @@ export async function PUT(request: NextRequest) {
 
   const data: Record<string, string> = {};
   for (const key of fields) {
-    if (body[key] !== undefined) data[key] = String(body[key]);
+    if (body[key] !== undefined) {
+      data[key] =
+        key === "heroImageUrl"
+          ? canonicalMediaUrl(body[key])
+          : String(body[key]);
+    }
   }
 
   const item = await prisma.siteConfig.upsert({

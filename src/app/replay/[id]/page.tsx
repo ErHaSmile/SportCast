@@ -3,16 +3,15 @@ import { notFound } from "next/navigation";
 import dayjs from "dayjs";
 import Link from "next/link";
 import LivePlayer from "@/components/site/LivePlayer";
+import { isNativeVideoUrl } from "@/lib/media";
+import { resolveMediaUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
 function videoType(url: string) {
-  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.includes("/uploads/videos/")) {
-    return "FILE";
-  }
-  return "HLS";
+  return isNativeVideoUrl(url) ? "FILE" : "HLS";
 }
 
 export default async function ReplayPage({ params }: Props) {
@@ -20,8 +19,12 @@ export default async function ReplayPage({ params }: Props) {
   const item = await prisma.schedule.findUnique({ where: { id } });
   if (!item || !item.isReplay) notFound();
 
-  const videoUrl = item.replayUrl?.trim() || "";
-  const hasVideo = Boolean(videoUrl);
+  const storedVideo = item.replayUrl?.trim() || "";
+  const [videoUrl, coverUrl] = await Promise.all([
+    resolveMediaUrl(storedVideo || null, { kind: "video" }),
+    resolveMediaUrl(item.coverUrl),
+  ]);
+  const hasVideo = Boolean(storedVideo);
 
   return (
     <div className="portal replay-page">
@@ -46,17 +49,17 @@ export default async function ReplayPage({ params }: Props) {
           {hasVideo ? (
             <div className="replay-player">
               <LivePlayer
-                type={videoType(videoUrl)}
+                type={videoType(storedVideo)}
                 url={videoUrl}
                 title={item.title}
-                poster={item.coverUrl || undefined}
+                poster={coverUrl || undefined}
                 isLive={false}
               />
             </div>
-          ) : item.coverUrl ? (
+          ) : coverUrl ? (
             <div className="replay-cover">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.coverUrl} alt={item.title} />
+              <img src={coverUrl} alt={item.title} />
             </div>
           ) : (
             <div className="replay-novideo">本专题为图文内容，暂无回放视频</div>

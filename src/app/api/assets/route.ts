@@ -1,20 +1,29 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
+import { createUploadedAsset, imageExt, uniqueFilename } from "@/lib/asset-file";
+import { resolveMediaUrl } from "@/lib/storage";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_SIZE = 5 * 1024 * 1024;
+
+export const maxDuration = 60;
 
 export async function GET() {
   const { error } = await requireAdminApi();
   if (error) return error;
 
-  const items = await prisma.asset.findMany({
+  const rows = await prisma.asset.findMany({
     orderBy: { createdAt: "desc" },
   });
+  const items = await Promise.all(
+    rows.map(async (item) => ({
+      ...item,
+      accessUrl: await resolveMediaUrl(item.path, {
+        kind: item.mime.startsWith("video/") ? "video" : "image",
+      }),
+    })),
+  );
   return jsonOk({ items });
 }
 
@@ -30,31 +39,14 @@ export async function POST(request: Request) {
   if (!ALLOWED.has(file.type)) return jsonError("仅支持 JPG / PNG / WEBP / GIF");
   if (file.size > MAX_SIZE) return jsonError("图片不能超过 5MB");
 
-  const ext =
-    file.type === "image/png"
-      ? "png"
-      : file.type === "image/webp"
-        ? "webp"
-        : file.type === "image/gif"
-          ? "gif"
-          : "jpg";
-
-  const filename = `${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadDir, filename), buffer);
-
-  const publicPath = `/uploads/${filename}`;
-  const name = (form.get("name") as string)?.trim() || file.name || filename;
-
-  const item = await prisma.asset.create({
-    data: {
-      name,
-      path: publicPath,
-      mime: file.type,
-      size: file.size,
-    },
+  const filename = uniqueFilename(imageExt(file.type));
+  const name = (form.get("name") as string)?.trim() || undefined;
+  const { item, accessUrl } = await createUploadedAsset({
+    kind: "image",
+    file,
+    filename,
+    mime: file.type,
+    name,
   });
 
   await writeOperationLog({
@@ -65,5 +57,5 @@ export async function POST(request: Request) {
     operator: session!.username,
   });
 
-  return jsonOk({ item }, { status: 201 });
+  return jsonOk({ item, accessUrl }, { status: 201 });
 }

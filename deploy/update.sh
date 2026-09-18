@@ -24,7 +24,9 @@ fi
 mkdir -p logs public/uploads/videos
 
 echo "==> 安装依赖..."
-if [[ -f package-lock.json ]]; then
+if command -v pnpm >/dev/null 2>&1 && [[ -f pnpm-lock.yaml ]]; then
+  pnpm install --frozen-lockfile
+elif [[ -f package-lock.json ]]; then
   npm ci
 else
   npm install
