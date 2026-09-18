@@ -124,6 +124,8 @@ if [ -f /tmp/sc.env.bak ]; then
   set +a
   export DATABASE_URL="file:/tmp/sportcast-build/prisma/prod.db"
   (cd /tmp/sportcast-build && pnpm exec prisma migrate deploy) || true
+  # 空库时写入初始管理员与演示数据（已有数据不覆盖业务，seed 会 upsert admin）
+  (cd /tmp/sportcast-build && pnpm exec prisma db seed) || true
 fi
 
 # replace app files with release
