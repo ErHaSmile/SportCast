@@ -16,6 +16,8 @@ type Props = {
   tip?: string;
   /** 是否显示「从素材库选择」，默认 true */
   allowLibrary?: boolean;
+  /** 上传成功后清空预览区（素材库入库区用） */
+  clearOnSuccess?: boolean;
 };
 
 async function resolvePreview(url: string) {
@@ -35,6 +37,7 @@ export default function ImageUploadField({
   onChange,
   tip,
   allowLibrary = true,
+  clearOnSuccess = false,
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState("");
@@ -68,8 +71,12 @@ export default function ImageUploadField({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "上传失败");
       onChange?.(json.item.path);
-      setPreview(json.accessUrl || json.item.path);
-      message.success("已上传到素材库");
+      if (clearOnSuccess) {
+        setPreview("");
+      } else {
+        setPreview(json.accessUrl || json.item.path);
+      }
+      message.success(clearOnSuccess ? "已入库素材库" : "已上传到素材库");
       onSuccess?.(json);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "上传失败");

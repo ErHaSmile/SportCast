@@ -17,6 +17,8 @@ type Props = {
   onChange?: (url: string) => void;
   tip?: string;
   allowLibrary?: boolean;
+  /** 上传成功后清空预览区（素材库入库区用） */
+  clearOnSuccess?: boolean;
 };
 
 async function resolvePreview(url: string) {
@@ -69,6 +71,7 @@ export default function VideoUploadField({
   onChange,
   tip,
   allowLibrary = true,
+  clearOnSuccess = false,
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const [percent, setPercent] = useState(0);
@@ -111,8 +114,12 @@ export default function VideoUploadField({
         onProgress?.({ percent: p });
       });
       onChange?.(json.item.path);
-      setPreview(json.accessUrl || json.item.path);
-      message.success("已上传到素材库");
+      if (clearOnSuccess) {
+        setPreview("");
+      } else {
+        setPreview(json.accessUrl || json.item.path);
+      }
+      message.success(clearOnSuccess ? "已入库素材库" : "已上传到素材库");
       onSuccess?.(json);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "上传失败");
