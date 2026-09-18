@@ -23,6 +23,7 @@ import VideoUploadField from "@/components/admin/VideoUploadField";
 import { VIDEO_MAX_LABEL } from "@/lib/upload-limits";
 
 type StreamOpt = { id: string; name: string };
+type CategoryOpt = { id: string; name: string };
 type Row = {
   id: string;
   title: string;
@@ -30,6 +31,7 @@ type Row = {
   startAt: string;
   endAt: string | null;
   streamId: string | null;
+  categoryId: string | null;
   replayUrl: string | null;
   detailUrl: string | null;
   coverUrl: string | null;
@@ -38,6 +40,7 @@ type Row = {
   sort: number;
   isReplay: boolean;
   stream?: StreamOpt | null;
+  category?: CategoryOpt | null;
 };
 
 const defaultValues = {
@@ -49,6 +52,7 @@ const defaultValues = {
   startAt: null,
   endAt: null,
   streamId: undefined,
+  categoryId: undefined,
   replayUrl: "",
   detailUrl: "",
   summary: "",
@@ -58,6 +62,7 @@ const defaultValues = {
 export default function SchedulesPage() {
   const [data, setData] = useState<Row[]>([]);
   const [streams, setStreams] = useState<StreamOpt[]>([]);
+  const [categories, setCategories] = useState<CategoryOpt[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -87,14 +92,19 @@ export default function SchedulesPage() {
 
   async function load() {
     setLoading(true);
-    const [sRes, stRes] = await Promise.all([
+    const [sRes, stRes, cRes] = await Promise.all([
       fetch("/api/schedules"),
       fetch("/api/streams"),
+      fetch("/api/categories?all=1"),
     ]);
     const sJson = await sRes.json();
     const stJson = await stRes.json();
+    const cJson = await cRes.json();
     setData(sJson.items || []);
     setStreams((stJson.items || []).map((x: StreamOpt) => ({ id: x.id, name: x.name })));
+    setCategories(
+      (cJson.items || []).map((x: CategoryOpt) => ({ id: x.id, name: x.name })),
+    );
     setLoading(false);
   }
 
@@ -128,6 +138,7 @@ export default function SchedulesPage() {
       content: row.content || "",
       location: row.location || "",
       streamId: row.streamId || undefined,
+      categoryId: row.categoryId || undefined,
       startAt: dayjs(row.startAt),
       endAt: row.endAt ? dayjs(row.endAt) : null,
     });
@@ -244,6 +255,11 @@ export default function SchedulesPage() {
             ),
           },
           { title: "标题", dataIndex: "title", ellipsis: true },
+          {
+            title: "项目",
+            width: 100,
+            render: (_: unknown, row: Row) => row.category?.name || "—",
+          },
           { title: "地点", dataIndex: "location", width: 140 },
           {
             title: "开始时间",
@@ -301,6 +317,13 @@ export default function SchedulesPage() {
         >
           <Form.Item name="title" label="标题" rules={[{ required: true }]}>
             <Input />
+          </Form.Item>
+          <Form.Item name="categoryId" label="体育项目" extra="前台分类页会按项目聚合展示">
+            <Select
+              allowClear
+              placeholder="选择体育项目"
+              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            />
           </Form.Item>
           <Form.Item name="isReplay" label="赛程类型" valuePropName="checked">
             <Switch

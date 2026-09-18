@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import SideTabs from "@/components/site/SideTabs";
+import SportCategoryRail from "@/components/site/SportCategoryRail";
 import { resolveMediaUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ function hostLabel(url?: string | null) {
 }
 
 export default async function HomePage() {
-  const [config, headers, partners, liveSchedules, replays, defaultStream] =
+  const [config, headers, partners, liveSchedules, replays, defaultStream, categories] =
     await Promise.all([
       prisma.siteConfig.findUnique({ where: { id: "default" } }),
       prisma.partner.findMany({
@@ -38,6 +39,11 @@ export default async function HomePage() {
         where: { status: "ON" },
         orderBy: [{ sort: "asc" }, { createdAt: "desc" }],
       }),
+      prisma.sportCategory.findMany({
+        where: { enabled: true },
+        orderBy: [{ sort: "asc" }, { createdAt: "asc" }],
+        include: { _count: { select: { schedules: true } } },
+      }),
     ]);
 
   const [
@@ -48,6 +54,7 @@ export default async function HomePage() {
     streamCovers,
     replayCovers,
     defaultCover,
+    categoryCovers,
   ] = await Promise.all([
     resolveMediaUrl(config?.heroImageUrl || "/covers/event-hero.svg"),
     Promise.all(headers.map((h) => resolveMediaUrl(h.logoUrl))),
@@ -58,6 +65,7 @@ export default async function HomePage() {
     ),
     Promise.all(replays.map((s) => resolveMediaUrl(s.coverUrl))),
     resolveMediaUrl(defaultStream?.coverUrl || null),
+    Promise.all(categories.map((c) => resolveMediaUrl(c.coverUrl))),
   ]);
 
   const footerLinks = (config?.footerLinks || "")
@@ -114,6 +122,18 @@ export default async function HomePage() {
         <p className="content-meta">
           {[config?.eventDateText, config?.sourceText].filter(Boolean).join("　")}
         </p>
+
+        <SportCategoryRail
+          items={categories.map((c, idx) => ({
+            id: c.id,
+            name: c.name,
+            slug: c.slug,
+            description: c.description,
+            badge: c.badge,
+            coverUrl: categoryCovers[idx] || null,
+            scheduleCount: c._count.schedules,
+          }))}
+        />
 
         <SideTabs
           liveSchedules={liveSchedules.map((s, idx) => ({

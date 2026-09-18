@@ -21,6 +21,7 @@ import {
   LogoutOutlined,
   LinkOutlined,
   SettingOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import zhCN from "antd/locale/zh_CN";
@@ -32,6 +33,7 @@ const items = [
   { key: "/admin", icon: <DashboardOutlined />, label: "概览" },
   { key: "/admin/streams", icon: <VideoCameraOutlined />, label: "直播源" },
   { key: "/admin/schedules", icon: <CalendarOutlined />, label: "赛程" },
+  { key: "/admin/categories", icon: <AppstoreOutlined />, label: "体育项目" },
   { key: "/admin/partners", icon: <LinkOutlined />, label: "外链合作" },
   { key: "/admin/site", icon: <SettingOutlined />, label: "站点配置" },
   { key: "/admin/assets", icon: <PictureOutlined />, label: "素材库" },

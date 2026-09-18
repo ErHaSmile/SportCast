@@ -8,7 +8,7 @@ export async function GET() {
   const { error } = await requireAdminApi();
   if (error) return error;
   const rows = await prisma.schedule.findMany({
-    include: { stream: true },
+    include: { stream: true, category: true },
     orderBy: [{ isReplay: "asc" }, { sort: "asc" }, { startAt: "asc" }],
   });
   const items = await Promise.all(
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     startAt?: string;
     endAt?: string;
     streamId?: string | null;
+    categoryId?: string | null;
     replayUrl?: string;
     detailUrl?: string;
     coverUrl?: string | null;
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       startAt: new Date(body.startAt),
       endAt: body.endAt ? new Date(body.endAt) : null,
       streamId: body.streamId || null,
+      categoryId: body.categoryId || null,
       replayUrl: canonicalMediaUrl(body.replayUrl) || null,
       detailUrl: body.detailUrl?.trim() || null,
       coverUrl: canonicalMediaUrl(body.coverUrl) || null,

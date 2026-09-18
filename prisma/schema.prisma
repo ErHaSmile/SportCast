@@ -39,6 +39,8 @@ model Schedule {
   endAt        DateTime?
   streamId     String?
   stream       Stream?   @relation(fields: [streamId], references: [id])
+  categoryId   String?
+  category     SportCategory? @relation(fields: [categoryId], references: [id])
   replayUrl    String?
   detailUrl    String?
   /// 录播摘要（列表/详情导语）
@@ -52,6 +54,26 @@ model Schedule {
   isReplay     Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  @@index([categoryId])
+}
+
+/// 体育项目分类（攀岩 / 射箭 / 足球 …）
+model SportCategory {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String     @default("")
+  coverUrl    String?
+  coverAssetId String?
+  coverAsset  Asset?     @relation(fields: [coverAssetId], references: [id])
+  /// 展示用短标签，如「竞速」「奥运」
+  badge       String     @default("")
+  sort        Int        @default(0)
+  enabled     Boolean    @default(true)
+  schedules   Schedule[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Asset {
@@ -65,6 +87,7 @@ model Asset {
   streams   Stream[]
   schedules Schedule[]
   partners  Partner[]
+  categories SportCategory[]
   createdAt DateTime   @default(now())
 
   @@index([alias])

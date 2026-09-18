@@ -20,6 +20,7 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
     startAt?: string;
     endAt?: string | null;
     streamId?: string | null;
+    categoryId?: string | null;
     replayUrl?: string | null;
     detailUrl?: string | null;
     coverUrl?: string | null;
@@ -43,6 +44,8 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
             ? new Date(body.endAt)
             : null,
       streamId: body?.streamId === undefined ? before.streamId : body.streamId || null,
+      categoryId:
+        body?.categoryId === undefined ? before.categoryId : body.categoryId || null,
       replayUrl:
         body?.replayUrl === undefined
           ? before.replayUrl
