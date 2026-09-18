@@ -228,9 +228,9 @@ git version 2.x.x
 
 ## 第 5 步：把项目代码弄到服务器上
 
-任选 **一种** 方式。没有 Git 仓库时，用 **方式 B（打包上传）** 最简单。
+任选 **一种** 方式。**推荐方式 A（Git）**，以后日常只需 `bash deploy/up.sh` 即可拉最新代码并重启。
 
-### 方式 A：有 Git 仓库（服务器直接拉）
+### 方式 A：有 Git 仓库（服务器直接拉，推荐）
 
 在服务器上：
 
@@ -239,8 +239,11 @@ cd /opt
 # 若 sportcast 是空目录，可先删掉空目录再克隆
 rmdir /opt/sportcast 2>/dev/null || true
 
-git clone 你的仓库地址 sportcast
+git clone https://github.com/ErHaSmile/SportCast.git sportcast
 cd /opt/sportcast
+# 去掉 Windows 换行符，避免脚本报错
+sed -i 's/\r$//' deploy/*.sh
+chmod +x deploy/*.sh
 ls
 ```
 
@@ -391,7 +394,7 @@ OSS_PREFIX=sportcast
 # OSS_SIGN_EXPIRES=7200
 ```
 
-4. 改完后重新构建并重启：`bash deploy/update.sh`（或只改了 `.env` 时：`pm2 restart sportcast --update-env`）。
+4. 改完后重新构建并重启：`bash deploy/up.sh`（或只改了 `.env` 时：`pm2 restart sportcast --update-env`）。
 
 ---
 
@@ -599,12 +602,25 @@ cd /opt/sportcast
 
 | 操作 | 命令 |
 |------|------|
+| **一键拉代码并启动** | `bash deploy/up.sh` |
 | 看状态 | `bash deploy/status.sh` |
-| 重启 | `bash deploy/restart.sh` |
+| 重启（不拉代码） | `bash deploy/restart.sh` |
 | 停止 | `bash deploy/stop.sh` |
-| 启动 | `bash deploy/start.sh` |
-| 发版更新 | `bash deploy/update.sh`（无 Git 时：`SKIP_GIT=1 bash deploy/update.sh`） |
+| 启动（已构建过） | `bash deploy/start.sh` |
+| 无 Git 时更新 | `SKIP_GIT=1 bash deploy/up.sh` |
 | 看日志 | `pm2 logs sportcast --lines 100` |
+
+### 日常发版（推荐）
+
+服务器上只要这一条：
+
+```bash
+cd /opt/sportcast
+bash deploy/up.sh
+```
+
+会自动：`git pull` → 装依赖 → 数据库迁移 → 构建 → PM2 启动/重启。  
+首次部署请先配好 `.env`，并用 `git clone` 把仓库放到 `/opt/sportcast`（见上文传代码步骤）。
 
 ### 手动上传代码后的更新流程
 
@@ -615,7 +631,7 @@ cd /opt/sportcast
 ```bash
 cd /opt/sportcast
 sed -i 's/\r$//' deploy/*.sh
-SKIP_GIT=1 bash deploy/update.sh
+SKIP_GIT=1 bash deploy/up.sh
 ```
 
 ### 备份

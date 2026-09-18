@@ -52,8 +52,9 @@ pnpm dev
 代码已就位后的常用命令：
 
 ```bash
-sudo bash deploy/install-env.sh   # 安装 Node / PM2 / Nginx
-cp deploy/env.production.example .env
-bash deploy/setup.sh              # 依赖 + 库表 + 构建
-bash deploy/start.sh              # PM2 启动
+sudo bash deploy/install-env.sh   # 首次：安装 Node / pnpm / PM2 / Nginx
+cp deploy/env.production.example .env && nano .env   # 填 AUTH_SECRET、OSS_*
+bash deploy/up.sh                 # 一键：拉代码 + 依赖 + 构建 + 启动
 ```
+
+以后发版只跑：`bash deploy/up.sh`
