@@ -57,18 +57,15 @@ cp deploy/env.production.example .env && nano .env   # 填 AUTH_SECRET、OSS_*
 bash deploy/up.sh                 # 一键：依赖 + 构建 + 启动（默认不拉 Git）
 ```
 
-### 日常发版（本机打包上传）
-
-本机：
+### 日常发版（本机一键）
 
 ```powershell
 cd "D:\project\直播录播网站\sportcast"
-powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
-scp "$env:USERPROFILE\Desktop\sportcast.tar.gz" root@你的公网IP:/opt/
+powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1 -Server root@你的公网IP
 ```
 
-服务器：
+清理本机依赖缓存：
 
-```bash
-bash /opt/sportcast/deploy/apply-upload.sh
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\clean.ps1 -Deep
 ```

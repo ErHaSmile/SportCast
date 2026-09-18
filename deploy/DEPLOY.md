@@ -29,7 +29,10 @@
 
 预计耗时：熟悉的话约 30～60 分钟（含上传代码时间）。
 
-> **发版方式：** 默认「本机 `deploy/pack.ps1` 打包 → 上传 → 服务器 `bash deploy/apply-upload.sh`」。国内 ECS 常连不上 GitHub，请勿依赖 `git pull`。
+> **发版方式（推荐）：** 本机一键推到服务器构建发布包并启动：  
+> `powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1 -Server root@公网IP`  
+> 之后服务器上是「解压即运行」的发布包（类似 jar），不必再依赖 GitHub。  
+> 清理本机垃圾：`powershell -ExecutionPolicy Bypass -File .\deploy\clean.ps1`
 
 ---
 
@@ -228,80 +231,53 @@ git version 2.x.x
 
 ---
 
-## 第 5 步：把项目代码弄到服务器上（推荐：本机打包上传）
+## 第 5 步：把项目弄到服务器上（推荐：本机一键发布）
 
-国内 ECS 常连不上 GitHub，**默认用本机打包 + 上传**，不要依赖 `git pull`。
+国内 ECS 常连不上 GitHub。**推荐本机一条命令**：上传源码 → 在服务器构建成「发布包」→ 直接启动（类似 Java 的 jar / Vue 的 dist）。
 
-### 方式 A：本机打包后上传（推荐）
+### 方式 A：本机一键发布（推荐）
 
-#### A1. 在你自己的电脑上打包
-
-项目目录：`D:\project\直播录播网站\sportcast`
-
-**PowerShell（一键脚本）：**
+在 **Windows PowerShell**（项目目录）：
 
 ```powershell
 cd "D:\project\直播录播网站\sportcast"
+powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1 -Server root@你的公网IP
+```
+
+要求：本机已能 `ssh root@公网IP`（首次需接受指纹）。  
+脚本会：打包源码 → scp 上传 → 服务器 `pnpm build` 成独立发布包 → 保留原 `.env` / 数据库 / uploads → PM2 启动。
+
+首次若服务器还没有 `.env`，先 SSH 上去写好（见第 6 步），再跑上面命令。
+
+本机清理已下载的依赖/缓存（释放磁盘）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\clean.ps1
+# 更彻底（含 pnpm store 未用包）：
+powershell -ExecutionPolicy Bypass -File .\deploy\clean.ps1 -Deep
+```
+
+### 方式 B：只打包，手动上传
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
+scp "$env:USERPROFILE\Desktop\sportcast-src.tar.gz" root@你的公网IP:/opt/
 ```
 
-桌面会生成 `sportcast.tar.gz`（已排除 `node_modules`、`.next`、`.env`、本地数据库）。
-
-**或手动 tar：**
-
-```powershell
-cd "D:\project\直播录播网站\sportcast"
-tar --exclude=node_modules --exclude=.next --exclude=.git --exclude=.env --exclude=prisma/dev.db --exclude=prisma/dev.db-journal --exclude=public/uploads --exclude=logs -czf "$env:USERPROFILE\Desktop\sportcast.tar.gz" .
-```
-
-若本机没有 `tar`，可用 7-Zip 压缩，但**不要**把 `node_modules`、`.next` 打进去。
-
-#### A2. 上传到服务器
-
-**方法 1：PowerShell scp**
-
-```powershell
-scp "$env:USERPROFILE\Desktop\sportcast.tar.gz" root@你的公网IP:/opt/
-```
-
-**方法 2：WinSCP**
-
-1. 协议 SFTP，主机填公网 IP，用户 `root`
-2. 右侧进到 `/opt`，把桌面 `sportcast.tar.gz` 拖上去
-
-#### A3. 服务器解压
+服务器：
 
 ```bash
 mkdir -p /opt/sportcast
-tar -xzf /opt/sportcast.tar.gz -C /opt/sportcast
-cd /opt/sportcast
-sed -i 's/\r$//' deploy/*.sh
-chmod +x deploy/*.sh
-ls
+tar -xzf /opt/sportcast-src.tar.gz -C /opt/sportcast
+cd /opt/sportcast && sed -i 's/\r$//' deploy/*.sh && bash deploy/up.sh
 ```
 
-必须能看到：`package.json`、`src/`、`prisma/`、`deploy/`、`next.config.ts`。
-
-若多了一层（`/opt/sportcast/sportcast/package.json`）：
-
-```bash
-cd /opt/sportcast
-mv sportcast/* sportcast/.* . 2>/dev/null || true
-rmdir sportcast 2>/dev/null || true
-ls
-```
-
-> 首次还要写 `.env`（第 6 步）。之后日常发版：本机 `pack.ps1` → 上传 → 服务器 `bash deploy/apply-upload.sh`。
-
-### 方式 B：Git 克隆（仅当服务器能访问 GitHub 时）
+### 方式 C：Git 克隆（仅当服务器能访问 GitHub）
 
 ```bash
 cd /opt
-rmdir /opt/sportcast 2>/dev/null || true
 git clone https://github.com/ErHaSmile/SportCast.git sportcast
-cd /opt/sportcast
-sed -i 's/\r$//' deploy/*.sh
-chmod +x deploy/*.sh
+cd /opt/sportcast && sed -i 's/\r$//' deploy/*.sh
 ```
 
 ---
@@ -586,40 +562,37 @@ cd /opt/sportcast
 
 | 操作 | 命令 |
 |------|------|
-| **一键构建并启动**（代码已上传） | `bash deploy/up.sh` |
-| **解压新包并启动** | `bash deploy/apply-upload.sh` |
+| **本机一键发版** | `.\deploy\pack.ps1 -Server root@公网IP` |
+| **服务器直接启动**（已是发布包） | `bash deploy/start-release.sh` |
+| 解压上传包并启动 | `bash deploy/apply-upload.sh` |
+| 源码模式构建启动 | `bash deploy/up.sh` |
 | 看状态 | `bash deploy/status.sh` |
-| 重启（不重新构建） | `bash deploy/restart.sh` |
+| 重启 | `bash deploy/restart.sh` |
 | 停止 | `bash deploy/stop.sh` |
-| 启动（已构建过） | `bash deploy/start.sh` |
+| 服务器清理缓存 | `bash deploy/clean.sh` |
 | 看日志 | `pm2 logs sportcast --lines 100` |
 
-### 日常发版（推荐：本机打包上传）
+### 日常发版（推荐）
 
-**1. 本机打包**
+本机 PowerShell：
 
 ```powershell
 cd "D:\project\直播录播网站\sportcast"
-powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
+powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1 -Server root@你的公网IP
 ```
 
-**2. 上传到服务器**
-
-```powershell
-scp "$env:USERPROFILE\Desktop\sportcast.tar.gz" root@你的公网IP:/opt/
-```
-
-**3. 服务器解压并启动**
+构建在服务器完成一次后，目录里是带 `server.js` 的发布包；以后重启只需：
 
 ```bash
-cd /opt/sportcast
-bash deploy/apply-upload.sh
+cd /opt/sportcast && bash deploy/start-release.sh
 ```
 
-`up.sh` **默认不拉 Git**。流程：装依赖 → 迁移 → 构建 → PM2 启动/重启。  
-`.env`、数据库、已上传文件不会被打包覆盖。
+本机清理：
 
-仅当服务器能访问 GitHub 时，才用：`USE_GIT=1 bash deploy/up.sh`。
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\clean.ps1
+powershell -ExecutionPolicy Bypass -File .\deploy\clean.ps1 -Deep
+```
 
 ### 备份
 

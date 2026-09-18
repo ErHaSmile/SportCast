@@ -1,0 +1,39 @@
+name: Build Linux release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install & build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec prisma generate
+          pnpm build
+          bash deploy/assemble-release.sh release
+
+      - name: Pack
+        run: |
+          tar -czf sportcast-release.tar.gz -C release .
+          ls -lh sportcast-release.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sportcast-release
+          path: sportcast-release.tar.gz
+          retention-days: 14
