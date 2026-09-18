@@ -28,7 +28,8 @@ export async function createSession(user: SessionUser) {
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // 仅 HTTPS 时开启；HTTP 公网 IP 访问必须为 false，否则浏览器不存 Cookie，登录后进不了后台
+    secure: process.env.AUTH_COOKIE_SECURE === "true",
     path: "/",
     maxAge: MAX_AGE,
   });

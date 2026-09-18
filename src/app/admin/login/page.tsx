@@ -1,14 +1,13 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button, Card, Form, Input, Typography, message } from "antd";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
 
@@ -26,8 +25,9 @@ function LoginForm() {
         return;
       }
       message.success("登录成功");
-      router.replace(searchParams.get("from") || "/admin");
-    } finally {
+      // 整页跳转，确保浏览器已写入 Set-Cookie 后再进后台
+      const next = searchParams.get("from") || "/admin";
+      window.location.assign(next);    } finally {
       setLoading(false);
     }
   }
