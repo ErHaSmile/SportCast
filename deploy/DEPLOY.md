@@ -21,13 +21,15 @@
 ② SSH 登录服务器
 ③ 创建目录 /opt/sportcast
 ④ 安装 Node.js、PM2、Nginx
-⑤ 把项目代码传到服务器
+⑤ 本机打包上传代码到服务器
 ⑥ 写 .env 配置
 ⑦ 安装依赖、建库、构建、启动
 ⑧ 配置 Nginx，用浏览器访问验证
 ```
 
 预计耗时：熟悉的话约 30～60 分钟（含上传代码时间）。
+
+> **发版方式：** 默认「本机 `deploy/pack.ps1` 打包 → 上传 → 服务器 `bash deploy/apply-upload.sh`」。国内 ECS 常连不上 GitHub，请勿依赖 `git pull`。
 
 ---
 
@@ -226,110 +228,80 @@ git version 2.x.x
 
 ---
 
-## 第 5 步：把项目代码弄到服务器上
+## 第 5 步：把项目代码弄到服务器上（推荐：本机打包上传）
 
-任选 **一种** 方式。**推荐方式 A（Git）**，以后日常只需 `bash deploy/up.sh` 即可拉最新代码并重启。
+国内 ECS 常连不上 GitHub，**默认用本机打包 + 上传**，不要依赖 `git pull`。
 
-### 方式 A：有 Git 仓库（服务器直接拉，推荐）
+### 方式 A：本机打包后上传（推荐）
 
-在服务器上：
+#### A1. 在你自己的电脑上打包
+
+项目目录：`D:\project\直播录播网站\sportcast`
+
+**PowerShell（一键脚本）：**
+
+```powershell
+cd "D:\project\直播录播网站\sportcast"
+powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
+```
+
+桌面会生成 `sportcast.tar.gz`（已排除 `node_modules`、`.next`、`.env`、本地数据库）。
+
+**或手动 tar：**
+
+```powershell
+cd "D:\project\直播录播网站\sportcast"
+tar --exclude=node_modules --exclude=.next --exclude=.git --exclude=.env --exclude=prisma/dev.db --exclude=prisma/dev.db-journal --exclude=public/uploads --exclude=logs -czf "$env:USERPROFILE\Desktop\sportcast.tar.gz" .
+```
+
+若本机没有 `tar`，可用 7-Zip 压缩，但**不要**把 `node_modules`、`.next` 打进去。
+
+#### A2. 上传到服务器
+
+**方法 1：PowerShell scp**
+
+```powershell
+scp "$env:USERPROFILE\Desktop\sportcast.tar.gz" root@你的公网IP:/opt/
+```
+
+**方法 2：WinSCP**
+
+1. 协议 SFTP，主机填公网 IP，用户 `root`
+2. 右侧进到 `/opt`，把桌面 `sportcast.tar.gz` 拖上去
+
+#### A3. 服务器解压
 
 ```bash
-cd /opt
-# 若 sportcast 是空目录，可先删掉空目录再克隆
-rmdir /opt/sportcast 2>/dev/null || true
-
-git clone https://github.com/ErHaSmile/SportCast.git sportcast
+mkdir -p /opt/sportcast
+tar -xzf /opt/sportcast.tar.gz -C /opt/sportcast
 cd /opt/sportcast
-# 去掉 Windows 换行符，避免脚本报错
 sed -i 's/\r$//' deploy/*.sh
 chmod +x deploy/*.sh
 ls
 ```
 
-应能看到 `package.json`、`src`、`prisma`、`deploy` 等。
+必须能看到：`package.json`、`src/`、`prisma/`、`deploy/`、`next.config.ts`。
 
-### 方式 B：本机打包后上传（Windows 最常用）
-
-#### B1. 在你自己的电脑上打包
-
-打开项目所在目录，例如：
-
-`D:\project\直播录播网站\sportcast`
-
-**PowerShell：**
-
-```powershell
-cd "D:\project\直播录播网站\sportcast"
-
-# 打包（不要带 node_modules、.next，体积会小很多，必须在服务器上重新安装）
-tar --exclude=node_modules --exclude=.next --exclude=prisma/dev.db --exclude=prisma/dev.db-journal --exclude=.git -czf "$env:USERPROFILE\Desktop\sportcast.tar.gz" .
-```
-
-桌面上会出现 `sportcast.tar.gz`。
-
-若本机没有 `tar` 命令，可：
-
-1. 用 7-Zip / 资源管理器压缩整个项目
-2. **务必删掉压缩包里的** `node_modules`、`.next` 文件夹后再传（或压缩前先不要选它们）
-
-#### B2. 上传到服务器
-
-**方法 1：PowerShell scp**
-
-```powershell
-scp "$env:USERPROFILE\Desktop\sportcast.tar.gz" root@47.xx.xx.xx:/opt/
-```
-
-**方法 2：WinSCP（图形界面）**
-
-1. 打开 WinSCP，新建站点：协议 SFTP，主机名填公网 IP，用户名 `root`，密码同上
-2. 登录后，右侧进到 `/opt`
-3. 把桌面上的 `sportcast.tar.gz` 拖到右侧 `/opt`
-
-#### B3. 在服务器上解压
-
-```bash
-cd /opt
-# 确保目标目录存在
-mkdir -p /opt/sportcast
-
-# 解压到项目目录（注意包内是项目根文件，不是多套一层文件夹）
-tar -xzf /opt/sportcast.tar.gz -C /opt/sportcast
-
-# 检查
-cd /opt/sportcast
-ls
-```
-
-必须能看到：
-
-```text
-package.json
-src/
-prisma/
-deploy/
-next.config.ts
-...
-```
-
-若看到多了一层，例如 `/opt/sportcast/sportcast/package.json`，把内层挪出来：
+若多了一层（`/opt/sportcast/sportcast/package.json`）：
 
 ```bash
 cd /opt/sportcast
-# 若误套一层，按实际目录名调整
 mv sportcast/* sportcast/.* . 2>/dev/null || true
 rmdir sportcast 2>/dev/null || true
 ls
 ```
 
-#### B4. 修正脚本换行（从 Windows 上传时建议做）
+> 首次还要写 `.env`（第 6 步）。之后日常发版：本机 `pack.ps1` → 上传 → 服务器 `bash deploy/apply-upload.sh`。
+
+### 方式 B：Git 克隆（仅当服务器能访问 GitHub 时）
 
 ```bash
+cd /opt
+rmdir /opt/sportcast 2>/dev/null || true
+git clone https://github.com/ErHaSmile/SportCast.git sportcast
 cd /opt/sportcast
 sed -i 's/\r$//' deploy/*.sh
 chmod +x deploy/*.sh
-ls -l deploy/
 ```
 
 ---
@@ -614,46 +586,40 @@ cd /opt/sportcast
 
 | 操作 | 命令 |
 |------|------|
-| **一键拉代码并启动** | `bash deploy/up.sh` |
+| **一键构建并启动**（代码已上传） | `bash deploy/up.sh` |
+| **解压新包并启动** | `bash deploy/apply-upload.sh` |
 | 看状态 | `bash deploy/status.sh` |
-| 重启（不拉代码） | `bash deploy/restart.sh` |
+| 重启（不重新构建） | `bash deploy/restart.sh` |
 | 停止 | `bash deploy/stop.sh` |
 | 启动（已构建过） | `bash deploy/start.sh` |
-| 无 Git 时更新 | `SKIP_GIT=1 bash deploy/up.sh` |
 | 看日志 | `pm2 logs sportcast --lines 100` |
 
-### 日常发版（推荐）
+### 日常发版（推荐：本机打包上传）
 
-服务器上只要这一条：
+**1. 本机打包**
+
+```powershell
+cd "D:\project\直播录播网站\sportcast"
+powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
+```
+
+**2. 上传到服务器**
+
+```powershell
+scp "$env:USERPROFILE\Desktop\sportcast.tar.gz" root@你的公网IP:/opt/
+```
+
+**3. 服务器解压并启动**
 
 ```bash
 cd /opt/sportcast
-bash deploy/up.sh
+bash deploy/apply-upload.sh
 ```
 
-会自动：`git pull` → 装依赖 → 数据库迁移 → 构建 → PM2 启动/重启。  
-首次部署请先配好 `.env`，并用 `git clone` 把仓库放到 `/opt/sportcast`（见上文传代码步骤）。
+`up.sh` **默认不拉 Git**。流程：装依赖 → 迁移 → 构建 → PM2 启动/重启。  
+`.env`、数据库、已上传文件不会被打包覆盖。
 
-若 `git pull` 报连不上 `github.com:443`，先改镜像再更新：
-
-```bash
-cd /opt/sportcast
-git remote set-url origin https://gitclone.com/github.com/ErHaSmile/SportCast.git
-# 若仍失败可试：https://ghproxy.net/https://github.com/ErHaSmile/SportCast.git
-bash deploy/up.sh
-```
-
-### 手动上传代码后的更新流程
-
-1. 本机重新打包（同样排除 `node_modules`、`.next`）
-2. 上传覆盖到 `/opt` 并解压到 `/opt/sportcast`
-3. 服务器执行：
-
-```bash
-cd /opt/sportcast
-sed -i 's/\r$//' deploy/*.sh
-SKIP_GIT=1 bash deploy/up.sh
-```
+仅当服务器能访问 GitHub 时，才用：`USE_GIT=1 bash deploy/up.sh`。
 
 ### 备份
 

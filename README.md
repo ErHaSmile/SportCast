@@ -54,7 +54,21 @@ pnpm dev
 ```bash
 sudo bash deploy/install-env.sh   # 首次：安装 Node / pnpm / PM2 / Nginx
 cp deploy/env.production.example .env && nano .env   # 填 AUTH_SECRET、OSS_*
-bash deploy/up.sh                 # 一键：拉代码 + 依赖 + 构建 + 启动
+bash deploy/up.sh                 # 一键：依赖 + 构建 + 启动（默认不拉 Git）
 ```
 
-以后发版只跑：`bash deploy/up.sh`
+### 日常发版（本机打包上传）
+
+本机：
+
+```powershell
+cd "D:\project\直播录播网站\sportcast"
+powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
+scp "$env:USERPROFILE\Desktop\sportcast.tar.gz" root@你的公网IP:/opt/
+```
+
+服务器：
+
+```bash
+bash /opt/sportcast/deploy/apply-upload.sh
+```

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# 一键发版：拉最新代码 → 装依赖 → 迁移 → 构建 → 启动/重启
+# 一键发版（默认：不拉 Git，适用于本机打包上传后的更新）
 # 用法（在 /opt/sportcast）：
 #   bash deploy/up.sh
-# 跳过 git：SKIP_GIT=1 bash deploy/up.sh
+# 若要用 git pull：USE_GIT=1 bash deploy/up.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,18 +46,15 @@ install_deps() {
   fi
 }
 
-if [[ "${SKIP_GIT:-0}" != "1" ]] && [[ -d .git ]]; then
-  echo "==> 拉取最新代码..."
+# 兼容旧参数 SKIP_GIT=1；默认跳过 git（国内 ECS 常连不上 GitHub）
+if [[ "${USE_GIT:-0}" == "1" ]] && [[ "${SKIP_GIT:-0}" != "1" ]] && [[ -d .git ]]; then
+  echo "==> 拉取最新代码 (USE_GIT=1)..."
   git fetch --all --prune
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
   git pull --ff-only origin "$BRANCH" || git pull --ff-only
   echo "==> 当前版本: $(git log -1 --oneline)"
-elif [[ "${SKIP_GIT:-0}" == "1" ]]; then
-  echo "==> 跳过 git pull（SKIP_GIT=1）"
 else
-  echo "==> 警告: 目录不是 git 仓库，无法自动拉代码。"
-  echo "    首次请用: git clone https://github.com/ErHaSmile/SportCast.git /opt/sportcast"
-  echo "    或继续用已有文件构建（SKIP_GIT=1 bash deploy/up.sh）"
+  echo "==> 跳过 git pull（默认使用本机打包上传的代码）"
 fi
 
 if [[ ! -f .env ]]; then
@@ -69,6 +66,11 @@ if [[ ! -f .env ]]; then
 fi
 
 mkdir -p logs public/uploads/videos prisma
+
+# 去掉 Windows 换行，避免脚本异常
+if command -v sed >/dev/null 2>&1; then
+  sed -i 's/\r$//' deploy/*.sh 2>/dev/null || true
+fi
 
 ensure_pnpm
 install_deps
