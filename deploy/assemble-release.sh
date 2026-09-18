@@ -30,37 +30,48 @@ cp -a deploy "$OUT/deploy"
 cp -a deploy/env.production.example "$OUT/deploy/" 2>/dev/null || true
 [[ -f .npmrc ]] && cp -a .npmrc "$OUT/" || true
 
-# 确保 prisma CLI 在发布包内（migrate 用）
-if [[ ! -d "$OUT/node_modules/prisma" && -d node_modules/prisma ]]; then
+# pnpm 下 node_modules/prisma 多为 symlink，必须解引用拷贝，否则发布包里 CLI 会断
+copy_pkg() {
+  local name="$1"
+  local src="node_modules/$name"
+  [[ -e "$src" ]] || return 0
   mkdir -p "$OUT/node_modules"
-  cp -a node_modules/prisma "$OUT/node_modules/"
-  cp -a node_modules/.bin "$OUT/node_modules/" 2>/dev/null || true
+  rm -rf "$OUT/node_modules/$name"
+  # -L: 跟随符号链接，拷成真实目录（兼容 pnpm）
+  cp -aL "$src" "$OUT/node_modules/$name"
+}
+
+copy_pkg "prisma"
+copy_pkg "@prisma"
+# 生成后的 client（standalone 通常已有，缺则补）
+if [[ -d node_modules/.prisma ]]; then
+  rm -rf "$OUT/node_modules/.prisma"
+  cp -aL node_modules/.prisma "$OUT/node_modules/.prisma"
 fi
-# prisma engines
-if [[ -d node_modules/@prisma ]] && [[ ! -d "$OUT/node_modules/@prisma" ]]; then
-  mkdir -p "$OUT/node_modules"
-  cp -a node_modules/@prisma "$OUT/node_modules/"
-fi
+
+# 写一个不依赖 .bin symlink 的 prisma 入口
+mkdir -p "$OUT/node_modules/.bin"
+cat > "$OUT/node_modules/.bin/prisma" <<'EOF'
+#!/usr/bin/env node
+require('../prisma/build/index.js')
+EOF
+chmod +x "$OUT/node_modules/.bin/prisma"
 
 # ali-oss 等 external 包：若 standalone 未带上则补齐
 for pkg in ali-oss urllib proxy-agent; do
-  if [[ -d "node_modules/$pkg" && ! -d "$OUT/node_modules/$pkg" ]]; then
-    # pnpm 结构可能在 .pnpm 下，尽力从根 symlink 目标拷贝
-    real=""
-    if [[ -L "node_modules/$pkg" ]]; then
-      real="$(readlink -f "node_modules/$pkg" 2>/dev/null || readlink "node_modules/$pkg")"
-    elif [[ -d "node_modules/$pkg" ]]; then
-      real="node_modules/$pkg"
-    fi
-    if [[ -n "$real" && -d "$real" ]]; then
-      mkdir -p "$OUT/node_modules"
-      cp -a "$real" "$OUT/node_modules/$pkg"
-    fi
+  if [[ -e "node_modules/$pkg" && ! -e "$OUT/node_modules/$pkg" ]]; then
+    copy_pkg "$pkg"
   fi
 done
 
 mkdir -p "$OUT/logs" "$OUT/public/uploads/videos" "$OUT/prisma"
 chmod +x "$OUT/deploy/"*.sh 2>/dev/null || true
+
+if [[ ! -f "$OUT/node_modules/prisma/build/index.js" ]]; then
+  echo "警告: 发布包内仍无 prisma CLI，启动时将跳过 migrate（可在构建目录先 migrate）"
+else
+  echo "==> prisma CLI 已打入发布包"
+fi
 
 echo "==> 发布目录就绪: $OUT"
 echo "    入口: $OUT/server.js"

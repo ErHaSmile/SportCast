@@ -59,10 +59,49 @@ if ! command -v pm2 >/dev/null 2>&1; then
   npm install -g pm2
 fi
 
+# Small ECS (≈2G RAM): next build is often OOM-killed without swap
+if ! swapon --show 2>/dev/null | grep -q .; then
+  echo "==> creating 4G swap (next build needs it on small ECS)"
+  fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+sysctl -w vm.swappiness=80 >/dev/null || true
+sysctl -w vm.overcommit_memory=1 >/dev/null || true
+pm2 stop all 2>/dev/null || true
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1280}"
+export NEXT_TELEMETRY_DISABLED=1
+export CI=1
+
 pnpm install --frozen-lockfile
 pnpm exec prisma generate
-pnpm build
+set +e
+if pnpm exec next build --help 2>/dev/null | grep -q -- '--webpack'; then
+  echo "==> next build --webpack (lower peak RAM)"
+  pnpm exec next build --webpack 2>&1 | tee /tmp/sportcast-build.log
+else
+  pnpm build 2>&1 | tee /tmp/sportcast-build.log
+fi
+BUILD_RC=${PIPESTATUS[0]}
+set -e
+if [ "$BUILD_RC" -ne 0 ]; then
+  echo "==> next build failed (rc=$BUILD_RC). last log lines:"
+  tail -n 60 /tmp/sportcast-build.log || true
+  dmesg -T 2>/dev/null | grep -iE 'out of memory|killed process' | tail -5 || true
+  free -h || true
+  exit "$BUILD_RC"
+fi
 bash deploy/assemble-release.sh /tmp/sportcast-release-out
+# 校验发布包内 prisma CLI（pnpm symlink 曾导致 MODULE_NOT_FOUND）
+if [ ! -f /tmp/sportcast-release-out/node_modules/prisma/build/index.js ]; then
+  echo "==> assemble 未带上 prisma，从构建目录强制拷贝..."
+  mkdir -p /tmp/sportcast-release-out/node_modules
+  cp -aL /tmp/sportcast-build/node_modules/prisma /tmp/sportcast-release-out/node_modules/prisma
+  cp -aL /tmp/sportcast-build/node_modules/@prisma /tmp/sportcast-release-out/node_modules/@prisma 2>/dev/null || true
+  [[ -d /tmp/sportcast-build/node_modules/.prisma ]] && cp -aL /tmp/sportcast-build/node_modules/.prisma /tmp/sportcast-release-out/node_modules/.prisma
+fi
 tar -czf /tmp/sportcast-release.tar.gz -C /tmp/sportcast-release-out .
 
 mkdir -p "$REMOTE_DIR"
@@ -70,6 +109,16 @@ mkdir -p "$REMOTE_DIR"
 if [ -f "$REMOTE_DIR/.env" ]; then cp -a "$REMOTE_DIR/.env" /tmp/sc.env.bak; fi
 if [ -f "$REMOTE_DIR/prisma/prod.db" ]; then mkdir -p /tmp/sc.db && cp -a "$REMOTE_DIR/prisma/prod.db" /tmp/sc.db/; fi
 if [ -d "$REMOTE_DIR/public/uploads" ]; then cp -a "$REMOTE_DIR/public/uploads" /tmp/sc.uploads.bak; fi
+
+# 在完整构建目录先做 migrate（依赖齐全），避免发布包缺 CLI 时启动失败
+if [ -f /tmp/sc.env.bak ]; then
+  echo "==> prisma migrate deploy (from build tree)..."
+  set -a
+  # shellcheck disable=SC1091
+  . /tmp/sc.env.bak
+  set +a
+  (cd /tmp/sportcast-build && pnpm exec prisma migrate deploy) || true
+fi
 
 # replace app files with release
 find "$REMOTE_DIR" -mindepth 1 -maxdepth 1 ! -name ".env" ! -name "prisma" ! -name "public" ! -name "logs" -exec rm -rf {} +

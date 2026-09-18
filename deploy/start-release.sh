@@ -20,12 +20,24 @@ fi
 
 mkdir -p logs public/uploads/videos prisma
 
-# 数据库迁移（发布包内含 prisma CLI）
-if [[ -x node_modules/.bin/prisma ]] || [[ -f node_modules/prisma/build/index.js ]]; then
+run_prisma() {
+  if [[ -f node_modules/prisma/build/index.js ]]; then
+    node node_modules/prisma/build/index.js "$@"
+    return $?
+  fi
+  if [[ -x node_modules/.bin/prisma ]]; then
+    ./node_modules/.bin/prisma "$@"
+    return $?
+  fi
+  return 127
+}
+
+# 数据库迁移（发布包内含 prisma CLI；缺失则跳过，不中断启动）
+if run_prisma -v >/dev/null 2>&1; then
   echo "==> prisma migrate deploy..."
-  ./node_modules/.bin/prisma migrate deploy || node node_modules/prisma/build/index.js migrate deploy
+  run_prisma migrate deploy
 else
-  echo "==> 警告: 发布包内无 prisma CLI，跳过迁移（请确认库表已就绪）"
+  echo "==> 警告: 发布包内无可用 prisma CLI，跳过迁移（请确认库表已就绪）"
 fi
 
 if ! command -v pm2 >/dev/null 2>&1; then
