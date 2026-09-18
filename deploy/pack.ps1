@@ -94,13 +94,18 @@ if [ "$BUILD_RC" -ne 0 ]; then
   exit "$BUILD_RC"
 fi
 bash deploy/assemble-release.sh /tmp/sportcast-release-out
-# 校验发布包内 prisma CLI（pnpm symlink 曾导致 MODULE_NOT_FOUND）
+# 强制打入 prisma client（pnpm 深层路径）
+FOUND="$(find /tmp/sportcast-build/node_modules -type d -path '*/.prisma/client' 2>/dev/null | head -1 || true)"
+if [ -n "$FOUND" ]; then
+  mkdir -p /tmp/sportcast-release-out/node_modules/.prisma
+  rm -rf /tmp/sportcast-release-out/node_modules/.prisma/client
+  cp -aL "$FOUND" /tmp/sportcast-release-out/node_modules/.prisma/client
+fi
 if [ ! -f /tmp/sportcast-release-out/node_modules/prisma/build/index.js ]; then
-  echo "==> assemble 未带上 prisma，从构建目录强制拷贝..."
+  echo "==> assemble 未带上 prisma CLI，从构建目录强制拷贝..."
   mkdir -p /tmp/sportcast-release-out/node_modules
   cp -aL /tmp/sportcast-build/node_modules/prisma /tmp/sportcast-release-out/node_modules/prisma
   cp -aL /tmp/sportcast-build/node_modules/@prisma /tmp/sportcast-release-out/node_modules/@prisma 2>/dev/null || true
-  [[ -d /tmp/sportcast-build/node_modules/.prisma ]] && cp -aL /tmp/sportcast-build/node_modules/.prisma /tmp/sportcast-release-out/node_modules/.prisma
 fi
 tar -czf /tmp/sportcast-release.tar.gz -C /tmp/sportcast-release-out .
 
@@ -110,13 +115,14 @@ if [ -f "$REMOTE_DIR/.env" ]; then cp -a "$REMOTE_DIR/.env" /tmp/sc.env.bak; fi
 if [ -f "$REMOTE_DIR/prisma/prod.db" ]; then mkdir -p /tmp/sc.db && cp -a "$REMOTE_DIR/prisma/prod.db" /tmp/sc.db/; fi
 if [ -d "$REMOTE_DIR/public/uploads" ]; then cp -a "$REMOTE_DIR/public/uploads" /tmp/sc.uploads.bak; fi
 
-# 在完整构建目录先做 migrate（依赖齐全），避免发布包缺 CLI 时启动失败
+# 在完整构建目录先做 migrate（依赖齐全）
 if [ -f /tmp/sc.env.bak ]; then
   echo "==> prisma migrate deploy (from build tree)..."
   set -a
   # shellcheck disable=SC1091
   . /tmp/sc.env.bak
   set +a
+  export DATABASE_URL="file:/tmp/sportcast-build/prisma/prod.db"
   (cd /tmp/sportcast-build && pnpm exec prisma migrate deploy) || true
 fi
 
@@ -125,10 +131,61 @@ find "$REMOTE_DIR" -mindepth 1 -maxdepth 1 ! -name ".env" ! -name "prisma" ! -na
 tar -xzf /tmp/sportcast-release.tar.gz -C "$REMOTE_DIR"
 
 if [ -f /tmp/sc.env.bak ]; then cp -a /tmp/sc.env.bak "$REMOTE_DIR/.env"; fi
+# 统一绝对路径，避免相对路径找不到库
+if [ -f "$REMOTE_DIR/.env" ]; then
+  if grep -q '^DATABASE_URL=' "$REMOTE_DIR/.env"; then
+    sed -i 's|^DATABASE_URL=.*|DATABASE_URL="file:/opt/sportcast/prisma/prod.db"|' "$REMOTE_DIR/.env"
+  else
+    echo 'DATABASE_URL="file:/opt/sportcast/prisma/prod.db"' >> "$REMOTE_DIR/.env"
+  fi
+fi
 mkdir -p "$REMOTE_DIR/prisma" "$REMOTE_DIR/public" "$REMOTE_DIR/logs"
-if [ -f /tmp/sc.db/prod.db ]; then cp -a /tmp/sc.db/prod.db "$REMOTE_DIR/prisma/prod.db"; fi
+if [ -f /tmp/sc.db/prod.db ]; then
+  cp -a /tmp/sc.db/prod.db "$REMOTE_DIR/prisma/prod.db"
+elif [ -f /tmp/sportcast-build/prisma/prod.db ]; then
+  cp -a /tmp/sportcast-build/prisma/prod.db "$REMOTE_DIR/prisma/prod.db"
+fi
 if [ -d /tmp/sc.uploads.bak ]; then rm -rf "$REMOTE_DIR/public/uploads"; mv /tmp/sc.uploads.bak "$REMOTE_DIR/public/uploads"; fi
 mkdir -p "$REMOTE_DIR/public/uploads/videos"
+
+# Nginx 反代（去掉阿里云默认欢迎页）
+if command -v nginx >/dev/null 2>&1; then
+  mkdir -p /etc/nginx/conf.d
+  if [ -f "$REMOTE_DIR/deploy/nginx.sportcast.conf" ]; then
+    sed 's/your-domain.com/106.15.76.192/' "$REMOTE_DIR/deploy/nginx.sportcast.conf" > /etc/nginx/conf.d/sportcast.conf
+    # ensure default_server so it wins over welcome page
+    grep -q 'default_server' /etc/nginx/conf.d/sportcast.conf || sed -i 's/listen 80;/listen 80 default_server;/' /etc/nginx/conf.d/sportcast.conf
+  fi
+  rm -f /etc/nginx/conf.d/default.conf
+  # comment default server in main nginx.conf if still present
+  if grep -qE '^\s*listen\s+80' /etc/nginx/nginx.conf && ! grep -q 'CONF_MARK_SPORTCAST' /etc/nginx/nginx.conf; then
+    cp -a /etc/nginx/nginx.conf "/etc/nginx/nginx.conf.bak.sportcast"
+    python3 - <<'PY'
+from pathlib import Path
+import re
+p = Path('/etc/nginx/nginx.conf')
+t = p.read_text()
+lines = t.splitlines(True)
+out, i = [], 0
+while i < len(lines):
+    line = lines[i]
+    if re.match(r'\s*server\s*\{', line):
+        chunk = [line]; d = line.count('{') - line.count('}'); j = i + 1
+        while j < len(lines) and d > 0:
+            chunk.append(lines[j]); d += lines[j].count('{') - lines[j].count('}'); j += 1
+        text = ''.join(chunk)
+        if re.search(r'listen\s+\[?::\]?:?80\b', text) or re.search(r'listen\s+80\b', text):
+            if 'ssl' not in text.split('{',1)[1][:200]:
+                out.append('# CONF_MARK_SPORTCAST disabled default server\n')
+                out.extend([('# ' + c if not c.lstrip().startswith('#') else c) for c in chunk])
+                i = j; continue
+        out.extend(chunk); i = j; continue
+    out.append(line); i += 1
+p.write_text(''.join(out))
+PY
+  fi
+  nginx -t && systemctl reload nginx || true
+fi
 
 if [ ! -f "$REMOTE_DIR/.env" ]; then
   echo "MISSING .env at $REMOTE_DIR/.env — create it then: bash $REMOTE_DIR/deploy/start-release.sh"

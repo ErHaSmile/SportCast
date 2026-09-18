@@ -30,23 +30,29 @@ cp -a deploy "$OUT/deploy"
 cp -a deploy/env.production.example "$OUT/deploy/" 2>/dev/null || true
 [[ -f .npmrc ]] && cp -a .npmrc "$OUT/" || true
 
-# pnpm 下 node_modules/prisma 多为 symlink，必须解引用拷贝，否则发布包里 CLI 会断
+# 确保 prisma CLI + 生成的 client 在发布包内（pnpm 下必须解引用）
 copy_pkg() {
   local name="$1"
   local src="node_modules/$name"
   [[ -e "$src" ]] || return 0
   mkdir -p "$OUT/node_modules"
   rm -rf "$OUT/node_modules/$name"
-  # -L: 跟随符号链接，拷成真实目录（兼容 pnpm）
   cp -aL "$src" "$OUT/node_modules/$name"
 }
 
 copy_pkg "prisma"
 copy_pkg "@prisma"
-# 生成后的 client（standalone 通常已有，缺则补）
+
+# 生成后的 client：pnpm 可能在 .pnpm 深层，不在顶层 .prisma
+rm -rf "$OUT/node_modules/.prisma"
 if [[ -d node_modules/.prisma ]]; then
-  rm -rf "$OUT/node_modules/.prisma"
   cp -aL node_modules/.prisma "$OUT/node_modules/.prisma"
+else
+  FOUND="$(find node_modules -type d -path '*/.prisma/client' 2>/dev/null | head -1 || true)"
+  if [[ -n "$FOUND" ]]; then
+    mkdir -p "$OUT/node_modules/.prisma"
+    cp -aL "$FOUND" "$OUT/node_modules/.prisma/client"
+  fi
 fi
 
 # 写一个不依赖 .bin symlink 的 prisma 入口
@@ -67,8 +73,12 @@ done
 mkdir -p "$OUT/logs" "$OUT/public/uploads/videos" "$OUT/prisma"
 chmod +x "$OUT/deploy/"*.sh 2>/dev/null || true
 
+if [[ ! -f "$OUT/node_modules/.prisma/client/default.js" && ! -f "$OUT/node_modules/.prisma/client/index.js" ]]; then
+  echo "错误: 发布包缺少 .prisma/client，请先 pnpm exec prisma generate"
+  exit 1
+fi
 if [[ ! -f "$OUT/node_modules/prisma/build/index.js" ]]; then
-  echo "警告: 发布包内仍无 prisma CLI，启动时将跳过 migrate（可在构建目录先 migrate）"
+  echo "警告: 发布包内仍无 prisma CLI，启动时将跳过 migrate"
 else
   echo "==> prisma CLI 已打入发布包"
 fi

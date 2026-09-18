@@ -48,10 +48,12 @@ if ! command -v pm2 >/dev/null 2>&1; then
 fi
 
 echo "==> 启动 / 重启..."
-if pm2 describe sportcast >/dev/null 2>&1; then
-  pm2 delete sportcast >/dev/null 2>&1 || true
-fi
-pm2 start deploy/ecosystem.release.cjs --update-env
+# 注意：ecosystem.release.cjs 不会被 PM2 识别为 ecosystem 配置（需 ecosystem.config.*），
+# 直接用 server.js 启动，避免把配置文件当脚本执行。
+pm2 delete sportcast >/dev/null 2>&1 || true
+pm2 delete ecosystem.release >/dev/null 2>&1 || true
+HOSTNAME=127.0.0.1 PORT=3000 NODE_ENV=production \
+  pm2 start "$ROOT/server.js" --name sportcast --update-env
 pm2 save
 
 echo ""
