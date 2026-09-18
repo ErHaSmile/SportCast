@@ -72,6 +72,7 @@ export default function VideoUploadField({
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const [percent, setPercent] = useState(0);
+  const [phase, setPhase] = useState<"idle" | "sending" | "storing">("idle");
   const [preview, setPreview] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const fileName = (value || preview).split("?")[0].split("/").pop() || preview;
@@ -102,9 +103,11 @@ export default function VideoUploadField({
 
     setUploading(true);
     setPercent(0);
+    setPhase("sending");
     try {
       const json = await uploadWithProgress(raw, (p) => {
         setPercent(p);
+        if (p >= 99) setPhase("storing");
         onProgress?.({ percent: p });
       });
       onChange?.(json.item.path);
@@ -117,6 +120,7 @@ export default function VideoUploadField({
     } finally {
       setUploading(false);
       setPercent(0);
+      setPhase("idle");
     }
   };
 
@@ -198,7 +202,18 @@ export default function VideoUploadField({
         )}
       </Space>
       {uploading && (
-        <Progress percent={percent} size="small" style={{ marginTop: 8, maxWidth: 360 }} />
+        <div style={{ marginTop: 8, maxWidth: 360 }}>
+          <Progress
+            percent={percent}
+            size="small"
+            status={phase === "storing" ? "active" : undefined}
+          />
+          <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
+            {phase === "storing"
+              ? "浏览器已传完，正在写入对象存储…"
+              : "正在上传到服务器…"}
+          </div>
+        </div>
       )}
       {tip && <div style={{ marginTop: 6, color: "#888", fontSize: 12 }}>{tip}</div>}
       <AssetPickerModal

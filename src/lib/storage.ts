@@ -71,9 +71,9 @@ async function ossClient(mode: "upload" | "sign") {
     throw new Error("对象存储未配置完整：需要 OSS_BUCKET / OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET");
   }
 
-  // 上传可用内网；签名给浏览器必须用公网域名，否则用户打不开
-  const endpoint =
-    mode === "upload" ? env("OSS_ENDPOINT") || undefined : undefined;
+  // 上传：同地域 ECS 务必走内网 endpoint，公网易超时（默认 60s）
+  // 签名：给浏览器必须用公网 / CDN
+  const uploadEndpoint = env("OSS_ENDPOINT") || undefined;
   const cname = mode === "sign" && Boolean(env("OSS_PUBLIC_BASE"));
 
   return new OSS({
@@ -81,10 +81,12 @@ async function ossClient(mode: "upload" | "sign") {
     accessKeyId,
     accessKeySecret,
     bucket,
-    endpoint: mode === "sign" && cname ? env("OSS_PUBLIC_BASE") : endpoint,
+    endpoint: mode === "upload" ? uploadEndpoint : mode === "sign" && cname ? env("OSS_PUBLIC_BASE") : undefined,
     cname: mode === "sign" ? cname : false,
     secure: true,
     authorizationV4: true,
+    // 分片上传大视频，默认 60s 不够
+    timeout: 10 * 60 * 1000,
   });
 }
 
@@ -214,6 +216,10 @@ export async function putStoredFile(opts: {
       await client.multipartUpload(key, tmp.dest, {
         mime: opts.contentType,
         headers,
+        // 5MB 分片；内网通常很快，公网也更稳
+        partSize: 5 * 1024 * 1024,
+        parallel: 2,
+        timeout: 10 * 60 * 1000,
       });
     } finally {
       await rm(tmp.dir, { recursive: true, force: true });

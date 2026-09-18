@@ -47,22 +47,35 @@ export async function POST(request: Request) {
   const filename = uniqueFilename(ext);
   const displayName = (form.get("name") as string)?.trim() || undefined;
   const alias = (form.get("alias") as string)?.trim() || undefined;
-  const { item, accessUrl } = await createUploadedAsset({
-    kind: "video",
-    file,
-    filename,
-    mime: file.type || `video/${ext}`,
-    name: displayName || name,
-    alias,
-  });
 
-  await writeOperationLog({
-    action: "asset.upload.video",
-    targetType: "Asset",
-    targetId: item.id,
-    after: item,
-    operator: session!.username,
-  });
+  try {
+    const { item, accessUrl } = await createUploadedAsset({
+      kind: "video",
+      file,
+      filename,
+      mime: file.type || `video/${ext}`,
+      name: displayName || name,
+      alias,
+    });
 
-  return jsonOk({ item, accessUrl }, { status: 201 });
+    await writeOperationLog({
+      action: "asset.upload.video",
+      targetType: "Asset",
+      targetId: item.id,
+      after: item,
+      operator: session!.username,
+    });
+
+    return jsonOk({ item, accessUrl }, { status: 201 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[upload-video]", msg);
+    if (/timeout|Timeout/i.test(msg)) {
+      return jsonError(
+        "上传到对象存储超时。请确认服务器 .env 已配置同地域内网：OSS_ENDPOINT=oss-cn-shanghai-internal.aliyuncs.com",
+        504,
+      );
+    }
+    return jsonError(`视频上传失败：${msg.slice(0, 200)}`, 500);
+  }
 }
