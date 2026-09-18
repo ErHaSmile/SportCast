@@ -394,6 +394,18 @@ OSS_PREFIX=sportcast
 # OSS_SIGN_EXPIRES=7200
 ```
 
+示例（上海 Bucket `sportcast1`）：
+
+```bash
+STORAGE_DRIVER=oss
+OSS_REGION=oss-cn-shanghai
+OSS_BUCKET=sportcast1
+OSS_ACCESS_KEY_ID=你的AccessKeyId
+OSS_ACCESS_KEY_SECRET=你的AccessKeySecret
+# OSS_ENDPOINT=oss-cn-shanghai-internal.aliyuncs.com
+OSS_PREFIX=sportcast
+```
+
 4. 改完后重新构建并重启：`bash deploy/up.sh`（或只改了 `.env` 时：`pm2 restart sportcast --update-env`）。
 
 ---
