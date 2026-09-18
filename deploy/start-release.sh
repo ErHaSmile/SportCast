@@ -32,10 +32,12 @@ run_prisma() {
   return 127
 }
 
-# 数据库迁移（发布包内含 prisma CLI；缺失则跳过，不中断启动）
-if run_prisma -v >/dev/null 2>&1; then
+# 数据库迁移（发布包内含 prisma CLI；失败不阻断启动——部署脚本会在构建目录先 migrate）
+if [[ -f node_modules/prisma/build/index.js ]]; then
   echo "==> prisma migrate deploy..."
-  run_prisma migrate deploy
+  if ! run_prisma migrate deploy; then
+    echo "==> 警告: 发布包内 migrate 失败（若构建阶段已 migrate 可忽略）"
+  fi
 else
   echo "==> 警告: 发布包内无可用 prisma CLI，跳过迁移（请确认库表已就绪）"
 fi
