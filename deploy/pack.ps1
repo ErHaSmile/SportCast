@@ -1,16 +1,15 @@
-﻿# Build release package OR one-click deploy to server (no npm download on server if using -Server build there once).
+﻿# One-click deploy to Aliyun ECS (default root@106.15.76.192)
 # Usage:
-#   # One-click deploy (recommended): build on server, then start like a jar
-#   powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1 -Server root@YOUR_IP
+#   Double-click:  发布到服务器.cmd
+#   Or: powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
+#   Pack only (no upload):  .\deploy\pack.ps1 -PackOnly
 #
-#   # Only make a local source pack (server will build once)
-#   powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1
-#
-# Output on Desktop: sportcast-release.tar.gz  OR  sportcast-src.tar.gz
+# Output: Desktop\sportcast-src.tar.gz / sportcast-release.tar.gz
 
 param(
-  [string]$Server = "",
-  [string]$RemoteDir = "/opt/sportcast"
+  [string]$Server = "root@106.15.76.192",
+  [string]$RemoteDir = "/opt/sportcast",
+  [switch]$PackOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,7 +36,7 @@ function New-SourceTar([string]$OutFile) {
   Write-Host "==> source pack $mb MB"
 }
 
-if ($Server) {
+if ($Server -and -not $PackOnly) {
   New-SourceTar $SrcTar
   Write-Host "==> upload to ${Server}:/tmp/sportcast-src.tar.gz"
   & scp $SrcTar "${Server}:/tmp/sportcast-src.tar.gz"
@@ -108,18 +107,15 @@ echo "DEPLOY_OK"
   Write-Host "==> download release tarball to Desktop (optional backup)"
   & scp "${Server}:/tmp/sportcast-release.tar.gz" $RelTar
   Write-Host "==> done. App should be running. Release copy: $RelTar"
-  Write-Host "    Later updates: re-run this script with -Server $Server"
+  Write-Host "    Site: http://106.15.76.192/"
+  Write-Host "    Admin: http://106.15.76.192/admin"
   return
 }
 
-# Local-only: source pack for manual upload + server-side first build
+# PackOnly: source pack for manual upload
 New-SourceTar $SrcTar
 Write-Host ""
-Write-Host "Source pack ready (server must build once)."
-Write-Host "  Better one-click (build on server, then jar-like start):"
-Write-Host "  powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1 -Server root@YOUR_IP"
-Write-Host ""
-Write-Host "Manual:"
-Write-Host "  scp `"$SrcTar`" root@YOUR_IP:/opt/"
-Write-Host "  # on server: tar extract + bash deploy/up.sh   (first time)"
-Write-Host "  # after first success, prefer pack.ps1 -Server for jar-like release deploy"
+Write-Host "Source pack ready: $SrcTar"
+Write-Host "One-click deploy:"
+Write-Host "  powershell -ExecutionPolicy Bypass -File .\deploy\pack.ps1"
+Write-Host "Or double-click: 发布到服务器.cmd"
