@@ -268,7 +268,7 @@ export default function PartnersPage() {
             <Input placeholder="https://" />
           </Form.Item>
           <Form.Item name="logoUrl" label="Logo 图片">
-            <ImageUploadField tip="建议正方形透明底 PNG" />
+            <ImageUploadField tip="建议正方形透明底 PNG，可点「素材库」引用" />
           </Form.Item>
           <Form.Item name="sort" label="排序">
             <InputNumber style={{ width: "100%" }} />

@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { Button, Image, Space, Upload, message } from "antd";
-import { DeleteOutlined, UploadOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  FolderOpenOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import type { UploadProps } from "antd";
+import AssetPickerModal, { type AssetItem } from "./AssetPickerModal";
 
 type Props = {
   value?: string | null;
   onChange?: (url: string) => void;
   tip?: string;
+  /** 是否显示「从素材库选择」，默认 true */
+  allowLibrary?: boolean;
 };
 
 async function resolvePreview(url: string) {
@@ -23,9 +30,15 @@ async function resolvePreview(url: string) {
   return url;
 }
 
-export default function ImageUploadField({ value, onChange, tip }: Props) {
+export default function ImageUploadField({
+  value,
+  onChange,
+  tip,
+  allowLibrary = true,
+}: Props) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     const v = value?.trim() || "";
@@ -56,7 +69,7 @@ export default function ImageUploadField({ value, onChange, tip }: Props) {
       if (!res.ok) throw new Error(json.error || "上传失败");
       onChange?.(json.item.path);
       setPreview(json.accessUrl || json.item.path);
-      message.success("上传成功");
+      message.success("已上传到素材库");
       onSuccess?.(json);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "上传失败");
@@ -65,6 +78,12 @@ export default function ImageUploadField({ value, onChange, tip }: Props) {
       setUploading(false);
     }
   };
+
+  function pick(asset: AssetItem) {
+    onChange?.(asset.path);
+    setPreview(asset.accessUrl || asset.path);
+    message.success("已引用素材库文件");
+  }
 
   return (
     <div>
@@ -97,7 +116,7 @@ export default function ImageUploadField({ value, onChange, tip }: Props) {
           暂无图片
         </div>
       )}
-      <Space>
+      <Space wrap>
         <Upload
           accept="image/png,image/jpeg,image/webp,image/gif"
           showUploadList={false}
@@ -108,6 +127,15 @@ export default function ImageUploadField({ value, onChange, tip }: Props) {
             {preview ? "重新上传" : "上传图片"}
           </Button>
         </Upload>
+        {allowLibrary && (
+          <Button
+            icon={<FolderOpenOutlined />}
+            disabled={uploading}
+            onClick={() => setPickerOpen(true)}
+          >
+            素材库
+          </Button>
+        )}
         {preview && (
           <Button icon={<DeleteOutlined />} onClick={() => onChange?.("")}>
             清除
@@ -115,6 +143,12 @@ export default function ImageUploadField({ value, onChange, tip }: Props) {
         )}
       </Space>
       {tip && <div style={{ marginTop: 6, color: "#888", fontSize: 12 }}>{tip}</div>}
+      <AssetPickerModal
+        open={pickerOpen}
+        kind="image"
+        onClose={() => setPickerOpen(false)}
+        onSelect={pick}
+      />
     </div>
   );
 }

@@ -19,6 +19,7 @@ export async function createUploadedAsset(opts: {
   filename: string;
   mime: string;
   name?: string;
+  alias?: string;
 }) {
   const stored = await putStoredFile({
     kind: opts.kind,
@@ -29,6 +30,7 @@ export async function createUploadedAsset(opts: {
   const item = await prisma.asset.create({
     data: {
       name: opts.name?.trim() || opts.file.name || opts.filename,
+      alias: opts.alias?.trim() || "",
       path: stored.url,
       mime: opts.mime,
       size: opts.file.size,

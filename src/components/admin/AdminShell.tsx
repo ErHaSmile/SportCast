@@ -36,7 +36,7 @@ const items = [
   { key: "/admin/schedules", icon: <CalendarOutlined />, label: "赛程" },
   { key: "/admin/partners", icon: <LinkOutlined />, label: "外链合作" },
   { key: "/admin/site", icon: <SettingOutlined />, label: "站点配置" },
-  { key: "/admin/assets", icon: <PictureOutlined />, label: "素材" },
+  { key: "/admin/assets", icon: <PictureOutlined />, label: "素材库" },
   { key: "/admin/logs", icon: <FileSearchOutlined />, label: "操作日志" },
   { key: "/admin/preview", icon: <EyeOutlined />, label: "预览" },
 ];

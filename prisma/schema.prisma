@@ -57,6 +57,8 @@ model Schedule {
 model Asset {
   id        String     @id @default(cuid())
   name      String
+  /// 别名，用于后台搜索与引用识别（可空）
+  alias     String     @default("")
   path      String
   mime      String
   size      Int
@@ -64,6 +66,9 @@ model Asset {
   schedules Schedule[]
   partners  Partner[]
   createdAt DateTime   @default(now())
+
+  @@index([alias])
+  @@index([name])
 }
 
 /// 顶部外链 / 合作单位 / 海报赞助 Logo

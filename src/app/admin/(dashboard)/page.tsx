@@ -15,7 +15,7 @@ export default async function AdminDashboardPage() {
   const cards = [
     { label: "直播源", value: `${streams}`, tip: `${liveOn} 路启用`, href: "/admin/streams" },
     { label: "赛程", value: `${schedules}`, tip: "赛程条目", href: "/admin/schedules" },
-    { label: "素材", value: `${assets}`, tip: "海报 / 封面", href: "/admin/assets" },
+    { label: "素材库", value: `${assets}`, tip: "图片 / 视频统一管理", href: "/admin/assets" },
     { label: "操作日志", value: `${logs}`, tip: "变更记录", href: "/admin/logs" },
   ];
 

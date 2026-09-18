@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireAdminApi } from "@/lib/api";
 import { writeOperationLog } from "@/lib/log";
@@ -9,11 +10,28 @@ const MAX_SIZE = 5 * 1024 * 1024;
 
 export const maxDuration = 60;
 
-export async function GET() {
+export async function GET(request: Request) {
   const { error } = await requireAdminApi();
   if (error) return error;
 
+  const { searchParams } = new URL(request.url);
+  const q = (searchParams.get("q") || "").trim();
+  const kind = (searchParams.get("kind") || "all").toLowerCase();
+
+  const where: Prisma.AssetWhereInput = {};
+  if (kind === "image") where.mime = { startsWith: "image/" };
+  if (kind === "video") where.mime = { startsWith: "video/" };
+  if (q) {
+    where.OR = [
+      { name: { contains: q } },
+      { alias: { contains: q } },
+      { path: { contains: q } },
+      { mime: { contains: q } },
+    ];
+  }
+
   const rows = await prisma.asset.findMany({
+    where,
     orderBy: { createdAt: "desc" },
   });
   const items = await Promise.all(
@@ -41,12 +59,14 @@ export async function POST(request: Request) {
 
   const filename = uniqueFilename(imageExt(file.type));
   const name = (form.get("name") as string)?.trim() || undefined;
+  const alias = (form.get("alias") as string)?.trim() || undefined;
   const { item, accessUrl } = await createUploadedAsset({
     kind: "image",
     file,
     filename,
     mime: file.type,
     name,
+    alias,
   });
 
   await writeOperationLog({

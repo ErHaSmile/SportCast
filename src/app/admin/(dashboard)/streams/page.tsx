@@ -274,7 +274,7 @@ export default function StreamsPage() {
           </Form.Item>
           <StreamTestPreview type={watchType} url={watchUrl} active={open} />
           <Form.Item name="coverUrl" label="封面图">
-            <ImageUploadField tip="直播封面 / 海报预览图" />
+            <ImageUploadField tip="直播封面 / 海报，可点「素材库」引用" />
           </Form.Item>
           <Form.Item name="status" label="状态" rules={[{ required: true }]}>
             <Select

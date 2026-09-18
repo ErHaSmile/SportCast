@@ -95,7 +95,7 @@ export default function SiteSettingsPage() {
                       <Input />
                     </Form.Item>
                     <Form.Item name="heroImageUrl" label="赛事海报图">
-                      <ImageUploadField tip="建议 16:9，无直播时作为主视觉背景" />
+                      <ImageUploadField tip="建议 16:9；可点「素材库」引用已上传海报" />
                     </Form.Item>
                     <Form.Item name="locationText" label="地点文案（海报底部）">
                       <Input />

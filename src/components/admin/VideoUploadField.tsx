@@ -2,14 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { Button, Progress, Space, Upload, message } from "antd";
-import { DeleteOutlined, UploadOutlined, VideoCameraOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  FolderOpenOutlined,
+  UploadOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import { VIDEO_MAX_BYTES, VIDEO_MAX_LABEL } from "@/lib/upload-limits";
+import AssetPickerModal, { type AssetItem } from "./AssetPickerModal";
 
 type Props = {
   value?: string | null;
   onChange?: (url: string) => void;
   tip?: string;
+  allowLibrary?: boolean;
 };
 
 async function resolvePreview(url: string) {
@@ -31,7 +38,7 @@ function uploadWithProgress(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/assets/upload-video");
-    xhr.timeout = 30 * 60 * 1000; // 30min
+    xhr.timeout = 30 * 60 * 1000;
     xhr.upload.onprogress = (ev) => {
       if (!ev.lengthComputable) return;
       onProgress?.(Math.min(99, Math.round((ev.loaded / ev.total) * 100)));
@@ -57,10 +64,16 @@ function uploadWithProgress(
   });
 }
 
-export default function VideoUploadField({ value, onChange, tip }: Props) {
+export default function VideoUploadField({
+  value,
+  onChange,
+  tip,
+  allowLibrary = true,
+}: Props) {
   const [uploading, setUploading] = useState(false);
   const [percent, setPercent] = useState(0);
   const [preview, setPreview] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const fileName = (value || preview).split("?")[0].split("/").pop() || preview;
 
   useEffect(() => {
@@ -96,7 +109,7 @@ export default function VideoUploadField({ value, onChange, tip }: Props) {
       });
       onChange?.(json.item.path);
       setPreview(json.accessUrl || json.item.path);
-      message.success("视频上传成功");
+      message.success("已上传到素材库");
       onSuccess?.(json);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "上传失败");
@@ -106,6 +119,12 @@ export default function VideoUploadField({ value, onChange, tip }: Props) {
       setPercent(0);
     }
   };
+
+  function pick(asset: AssetItem) {
+    onChange?.(asset.path);
+    setPreview(asset.accessUrl || asset.path);
+    message.success("已引用素材库文件");
+  }
 
   return (
     <div>
@@ -126,9 +145,7 @@ export default function VideoUploadField({ value, onChange, tip }: Props) {
             playsInline
             style={{ width: "100%", maxHeight: 240, display: "block", background: "#000" }}
           />
-          <div style={{ padding: "8px 10px", fontSize: 12, color: "#666" }}>
-            {fileName}
-          </div>
+          <div style={{ padding: "8px 10px", fontSize: 12, color: "#666" }}>{fileName}</div>
         </div>
       ) : (
         <div
@@ -147,10 +164,10 @@ export default function VideoUploadField({ value, onChange, tip }: Props) {
           }}
         >
           <VideoCameraOutlined style={{ fontSize: 28 }} />
-          <span>尚未上传回放视频</span>
+          <span>尚未选择回放视频</span>
         </div>
       )}
-      <Space>
+      <Space wrap>
         <Upload
           accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
           showUploadList={false}
@@ -161,8 +178,21 @@ export default function VideoUploadField({ value, onChange, tip }: Props) {
             {preview ? "重新上传视频" : "上传回放视频"}
           </Button>
         </Upload>
+        {allowLibrary && (
+          <Button
+            icon={<FolderOpenOutlined />}
+            disabled={uploading}
+            onClick={() => setPickerOpen(true)}
+          >
+            素材库
+          </Button>
+        )}
         {preview && (
-          <Button icon={<DeleteOutlined />} disabled={uploading} onClick={() => onChange?.("")}>
+          <Button
+            icon={<DeleteOutlined />}
+            disabled={uploading}
+            onClick={() => onChange?.("")}
+          >
             清除
           </Button>
         )}
@@ -171,6 +201,12 @@ export default function VideoUploadField({ value, onChange, tip }: Props) {
         <Progress percent={percent} size="small" style={{ marginTop: 8, maxWidth: 360 }} />
       )}
       {tip && <div style={{ marginTop: 6, color: "#888", fontSize: 12 }}>{tip}</div>}
+      <AssetPickerModal
+        open={pickerOpen}
+        kind="video"
+        onClose={() => setPickerOpen(false)}
+        onSelect={pick}
+      />
     </div>
   );
 }

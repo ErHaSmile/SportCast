@@ -45,12 +45,15 @@ export async function POST(request: Request) {
 
   const ext = extFromMime(file.type || "video/mp4", name);
   const filename = uniqueFilename(ext);
+  const displayName = (form.get("name") as string)?.trim() || undefined;
+  const alias = (form.get("alias") as string)?.trim() || undefined;
   const { item, accessUrl } = await createUploadedAsset({
     kind: "video",
     file,
     filename,
     mime: file.type || `video/${ext}`,
-    name,
+    name: displayName || name,
+    alias,
   });
 
   await writeOperationLog({

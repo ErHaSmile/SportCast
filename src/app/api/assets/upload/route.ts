@@ -20,11 +20,15 @@ export async function POST(request: Request) {
   if (file.size > MAX_SIZE) return jsonError("图片不能超过 5MB");
 
   const filename = uniqueFilename(imageExt(file.type));
+  const name = (form.get("name") as string)?.trim() || undefined;
+  const alias = (form.get("alias") as string)?.trim() || undefined;
   const { item, accessUrl } = await createUploadedAsset({
     kind: "image",
     file,
     filename,
     mime: file.type,
+    name,
+    alias,
   });
 
   await writeOperationLog({

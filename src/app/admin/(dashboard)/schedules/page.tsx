@@ -20,6 +20,7 @@ import {
 import dayjs from "dayjs";
 import ImageUploadField from "@/components/admin/ImageUploadField";
 import VideoUploadField from "@/components/admin/VideoUploadField";
+import { VIDEO_MAX_LABEL } from "@/lib/upload-limits";
 
 type StreamOpt = { id: string; name: string };
 type Row = {
@@ -345,7 +346,7 @@ export default function SchedulesPage() {
               rules={[{ required: true, message: "请上传回放视频" }]}
               extra="上传 MP4 / WEBM / MOV，前台回放页将直接播放该视频"
             >
-              <VideoUploadField tip="建议 1080p MP4，单文件不超过 1GB" />
+              <VideoUploadField tip={`建议 1080p MP4，单文件不超过 ${VIDEO_MAX_LABEL}；也可点「素材库」引用已上传视频`} />
             </Form.Item>
           )}
 
@@ -353,7 +354,7 @@ export default function SchedulesPage() {
             <Input />
           </Form.Item>
           <Form.Item name="coverUrl" label="封面图">
-            <ImageUploadField tip="赛程 / 回放封面" />
+            <ImageUploadField tip="赛程 / 回放封面，可点「素材库」引用" />
           </Form.Item>
           {isReplay && (
             <>
